@@ -15,6 +15,7 @@ private:
     int32 Step = 0;
     float Clock = 0;
     FVector StartPosition = FVector::ZeroVector;
+    double ExpectedDefenseStart = 0;
     int32 PreviousGeneration = -1;
     int32 Observed = 0;
     bool bSawSword = false;

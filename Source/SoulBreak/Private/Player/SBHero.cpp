@@ -17,9 +17,23 @@
 #include "InputMappingContext.h"
 #include "InputModifiers.h"
 
+namespace
+{
+bool IsDefense(ESBHeroAction Action)
+{
+    return Action==ESBHeroAction::Evade || Action==ESBHeroAction::Parry;
+}
+bool IsSwordAction(ESBHeroAction Action)
+{
+    return Action==ESBHeroAction::Cut || Action==ESBHeroAction::ReturnCut || Action==ESBHeroAction::OathCut;
+}
+}
+
 ASBHero::ASBHero()
 {
     GetCapsuleComponent()->InitCapsuleSize(30,90);
+    // Read this frame's controls before CharacterMovement consumes its pending input vector.
+    GetCharacterMovement()->bTickBeforeOwner = false;
     GetCharacterMovement()->MaxWalkSpeed = 450;
     GetCharacterMovement()->MaxAcceleration = 3400;
     GetCharacterMovement()->BrakingDecelerationWalking = 3000;
@@ -31,7 +45,7 @@ ASBHero::ASBHero()
     Boom->SocketOffset=FVector(0,42,8);
     Boom->bUsePawnControlRotation=true;
     Boom->bEnableCameraLag=true;
-    Boom->CameraLagSpeed=17;
+    Boom->CameraLagSpeed=25;
     Boom->ProbeSize=11;
     Camera=CreateDefaultSubobject<UCameraComponent>(TEXT("FollowCamera"));
     Camera->SetupAttachment(Boom,USpringArmComponent::SocketName);
@@ -40,6 +54,10 @@ ASBHero::ASBHero()
 void ASBHero::BeginPlay()
 {
     Super::BeginPlay();
+    UCharacterMovementComponent* Movement=GetCharacterMovement();
+    PrimaryActorTick.RemovePrerequisite(Movement,Movement->PrimaryComponentTick);
+    Movement->AddTickPrerequisiteActor(this);
+    Boom->AddTickPrerequisiteComponent(Movement);
     LoadFighter(TEXT("Hero"),184.f);
     if (AController* C=GetController()) C->SetControlRotation(FRotator(-9,GetActorRotation().Yaw,0));
 }
@@ -47,8 +65,7 @@ void ASBHero::PawnClientRestart()
 {
     Super::PawnClientRestart();
     if (Controller) Controller->SetControlRotation(FRotator(-9,GetActorRotation().Yaw,0));
-    AcceptLookAfter = GetWorld()->GetTimeSeconds() + .25;
-    bHasMouseSample = false;
+    ClearControlInput();
 }
 void ASBHero::SetupPlayerInputComponent(UInputComponent* Input)
 {
@@ -76,7 +93,8 @@ void ASBHero::SetupPlayerInputComponent(UInputComponent* Input)
     LookAction->AccumulationBehavior=EInputActionAccumulationBehavior::Cumulative;
     MakeAxis(EKeys::MouseX,LookAction,false,false); MakeAxis(EKeys::MouseY,LookAction,true,false);
     IC->BindAction(MoveAction,ETriggerEvent::Triggered,this,&ASBHero::MoveInput);
-    IC->BindAction(MoveAction,ETriggerEvent::Completed,this,&ASBHero::MoveInput);
+    IC->BindAction(MoveAction,ETriggerEvent::Completed,this,&ASBHero::SetMoveStick,FVector2D::ZeroVector);
+    IC->BindAction(MoveAction,ETriggerEvent::Canceled,this,&ASBHero::SetMoveStick,FVector2D::ZeroVector);
     IC->BindAction(LookAction,ETriggerEvent::Triggered,this,&ASBHero::LookInput);
     auto Button=[&](FKey Key) {
         UInputAction* Act=NewObject<UInputAction>(Mapping); Mapping->MapKey(Act,Key); return Act;
@@ -89,6 +107,7 @@ void ASBHero::SetupPlayerInputComponent(UInputComponent* Input)
     UInputAction* Sprint=Button(EKeys::LeftShift);
     IC->BindAction(Sprint,ETriggerEvent::Started,this,&ASBHero::SetSprinting,true);
     IC->BindAction(Sprint,ETriggerEvent::Completed,this,&ASBHero::SetSprinting,false);
+    IC->BindAction(Sprint,ETriggerEvent::Canceled,this,&ASBHero::SetSprinting,false);
     Sys->AddMappingContext(Mapping,10);
 }
 void ASBHero::RemoveMapping()
@@ -98,7 +117,7 @@ void ASBHero::RemoveMapping()
 }
 void ASBHero::UnPossessed()
 {
-    RemoveMapping(); Stick=FVector2D::ZeroVector; bSprintHeld=false;
+    RemoveMapping(); ClearControlInput();
     Super::UnPossessed();
 }
 void ASBHero::EndPlay(EEndPlayReason::Type Why)
@@ -112,21 +131,33 @@ void ASBHero::ToggleLock() { if (Health>0 && IsValid(Knight) && Knight->Health>0
 void ASBHero::SetMoveStick(FVector2D V) { Stick=V.GetClampedToMaxSize(1.f); }
 void ASBHero::SetSprinting(bool Held) { bSprintHeld=Held; if (!Held) bNeedsSprintRecovery=false; }
 void ASBHero::MoveInput(const FInputActionValue& V) { SetMoveStick(V.Get<FVector2D>()); }
+void ASBHero::ResetLookCapture()
+{
+    CaptureGuardUntil=GetWorld()->GetTimeSeconds()+.25;
+    bFirstLookAfterCapture=true;
+}
+void ASBHero::ClearControlInput()
+{
+    Stick=FVector2D::ZeroVector;
+    SetSprinting(false);
+    BufferedAction=ESBHeroAction::Ready;
+    ConsumeMovementInputVector();
+    ResetLookCapture();
+}
+void ASBHero::DisableInput(APlayerController* PC)
+{
+    Super::DisableInput(PC);
+    if (!InputEnabled()) ClearControlInput();
+}
 void ASBHero::LookInput(const FInputActionValue& V)
 {
-    if (bLockedOn || !Controller || Health<=0) return;
-    // On first capture the platform may report a warp from the desktop pointer to the viewport center.
-    if (!FApp::HasFocus() || GetWorld()->GetTimeSeconds() < AcceptLookAfter)
-    {
-        bHasMouseSample = false;
-        return;
-    }
-    if (!bHasMouseSample)
-    {
-        bHasMouseSample = true;
-        return;
-    }
-    FVector2D Delta=V.Get<FVector2D>();
+    if (bLockedOn || !Controller || Health<=0 || !FApp::HasFocus()) return;
+    const FVector2D Delta=V.Get<FVector2D>();
+    // A captured viewport can send a desktop-to-center warp. Keep ordinary first motion,
+    // even on the first frame. The guard applies only around initial capture/refocus.
+    const bool bGuard=bFirstLookAfterCapture || GetWorld()->GetTimeSeconds()<CaptureGuardUntil;
+    bFirstLookAfterCapture=false;
+    if (bGuard && Delta.GetAbsMax()>32.f) return;
     FRotator Rot=Controller->GetControlRotation();
     Rot.Yaw+=Delta.X*1.25; Rot.Pitch=FMath::ClampAngle(Rot.Pitch+Delta.Y*1.15,-62.f,38.f);
     Controller->SetControlRotation(Rot);
@@ -138,52 +169,120 @@ FVector ASBHero::WishDirection() const
 }
 bool ASBHero::Spend(float Cost)
 {
+    if (Cost<=0) return true;
     if (!SBCombat::Spend(Stamina,Cost)) return false;
     SpentAt=GetWorld()->TimeSeconds; return true;
 }
 void ASBHero::BeginAction(ESBHeroAction Next,FName Clip,float Duration)
 {
-    Action=Next; ActionElapsed=0; bQueuedCombo=false; Combat->Cancel();
+    StaminaWarningUntil=-1.;
+    Action=Next; ActionElapsed=0; ActionDuration=Duration;
+    BufferedAction=ESBHeroAction::Ready;
+    Combat->Cancel();
+    ConsumeMovementInputVector();
     GetCharacterMovement()->StopMovementImmediately();
     Pose(Clip,false,Duration,true);
 }
-void ASBHero::BeginCut(bool bSecond)
+const FSBAttackTiming& ASBHero::TimingFor(ESBHeroAction Requested) const
 {
-    const FSBAttackTiming& W=bSecond ? CombatData->ReturnCut : CombatData->Cut;
+    switch (Requested)
+    {
+    case ESBHeroAction::ReturnCut: return CombatData->ReturnCut;
+    case ESBHeroAction::OathCut: return CombatData->OathCut;
+    case ESBHeroAction::Parry: return CombatData->Parry;
+    case ESBHeroAction::Evade: return CombatData->Evade;
+    default: return CombatData->Cut;
+    }
+}
+void ASBHero::TryAttack() { RequestAction(ESBHeroAction::Cut); }
+void ASBHero::TryOathCut() { RequestAction(ESBHeroAction::OathCut); }
+void ASBHero::TryDodge() { RequestAction(ESBHeroAction::Evade); }
+void ASBHero::TryParry() { RequestAction(ESBHeroAction::Parry); }
+bool ASBHero::IsStaminaWarningActive() const
+{
+    return GetWorld()->GetTimeSeconds() < StaminaWarningUntil;
+}
+void ASBHero::RequestAction(ESBHeroAction Requested)
+{
+    if (!CombatData || Health<=0 || !InputEnabled()) return;
+    if (Requested==ESBHeroAction::Cut && Action==ESBHeroAction::Cut) Requested=ESBHeroAction::ReturnCut;
+    if (Requested==ESBHeroAction::OathCut && !bOathReady) return;
+    if (Stamina<TimingFor(Requested).Cost)
+    {
+        StaminaWarningUntil=GetWorld()->GetTimeSeconds()+.35;
+        return;
+    }
+    const FVector Direction=Stick.IsNearlyZero() ? GetActorForwardVector() : WishDirection().GetSafeNormal2D();
+    if (Action==ESBHeroAction::Ready)
+    {
+        ExecuteAction(Requested,Direction);
+        return;
+    }
+    const bool bDefense=IsDefense(Requested);
+    float QueueFrom=ActionDuration-.15f;
+    if (IsSwordAction(Action))
+    {
+        const FSBAttackTiming& Swing=TimingFor(Action);
+        // Defense may cancel only recovery. A tap just before the end of the active window
+        // waits for TraceCut to collect its final contacts before switching actions.
+        if (bDefense)
+        {
+            if (ActionElapsed>=Swing.Close)
+            {
+                ExecuteAction(Requested,Direction);
+                return;
+            }
+            QueueFrom=Swing.Close-.12f;
+        }
+        else if (Requested==ESBHeroAction::ReturnCut) QueueFrom=Swing.Open-.05f;
+        else QueueFrom=FMath::Min(QueueFrom,Swing.Close-.06f);
+    }
+    if (ActionElapsed+KINDA_SMALL_NUMBER<QueueFrom || (IsDefense(BufferedAction) && !bDefense)) return;
+    BufferedAction=Requested;
+    BufferedDirection=Direction;
+}
+void ASBHero::ExecuteAction(ESBHeroAction Requested,const FVector& Direction)
+{
+    if (!InputEnabled() || Health<=0 || (Requested==ESBHeroAction::OathCut && !bOathReady)) return;
+    const FSBAttackTiming& W=TimingFor(Requested);
     if (!Spend(W.Cost)) return;
+    if (Requested==ESBHeroAction::Evade)
+    {
+        DodgeDirection=Direction;
+        Face(DodgeDirection,180);
+        BeginAction(Requested,TEXT("Evade"),W.Duration);
+        PlayCue(TEXT("Dodge"),.7f);
+        return;
+    }
+    if (Requested==ESBHeroAction::Parry)
+    {
+        BeginAction(Requested,TEXT("Parry"),W.Duration);
+        PlayCue(TEXT("Shield"),.26f,1.32f);
+        return;
+    }
     if (bLockedOn && Knight) Face(Knight->GetActorLocation()-GetActorLocation(),180);
-    else if (!Stick.IsNearlyZero()) Face(WishDirection(),180);
-    BeginAction(bSecond ? ESBHeroAction::ReturnCut:ESBHeroAction::Cut,bSecond ? TEXT("ReturnCut"):TEXT("Cut"),W.Duration);
+    else Face(Direction,180);
+    if (Requested==ESBHeroAction::OathCut)
+    {
+        bOathReady=false;
+        BeginAction(Requested,TEXT("OathCut"),W.Duration);
+        PlayCue(TEXT("Parry"),.72f,.76f);
+    }
+    else
+    {
+        const bool bSecond=Requested==ESBHeroAction::ReturnCut;
+        BeginAction(Requested,bSecond ? TEXT("ReturnCut"):TEXT("Cut"),W.Duration);
+        PlayCue(TEXT("Swing"),.68f,bSecond ? .88f:1.06f);
+    }
     Combat->StartCut();
-    PlayCue(TEXT("Swing"),.68f,bSecond ? .88f:1.06f);
 }
-void ASBHero::TryAttack()
+void ASBHero::FinishAction()
 {
-    if (!CombatData || Health<=0) return;
-    if (Action==ESBHeroAction::Cut && ActionElapsed>=CombatData->Cut.Duration-.20f) { bQueuedCombo=true; return; }
-    if (Action==ESBHeroAction::Ready) BeginCut(false);
-}
-void ASBHero::TryOathCut()
-{
-    if (!CombatData || !bOathReady || Health<=0 || Action!=ESBHeroAction::Ready) return;
-    bOathReady=false;
-    if (bLockedOn && Knight) Face(Knight->GetActorLocation()-GetActorLocation(),180);
-    BeginAction(ESBHeroAction::OathCut,TEXT("OathCut"),CombatData->OathCut.Duration);
-    Combat->StartCut(); PlayCue(TEXT("Parry"),.72f,.76f);
-}
-void ASBHero::TryDodge()
-{
-    if (!CombatData || Action!=ESBHeroAction::Ready || !Spend(CombatData->Evade.Cost)) return;
-    DodgeDirection=Stick.IsNearlyZero() ? GetActorForwardVector():WishDirection().GetSafeNormal2D();
-    Face(DodgeDirection,180);
-    BeginAction(ESBHeroAction::Evade,TEXT("Evade"),CombatData->Evade.Duration);
-    PlayCue(TEXT("Dodge"),.7f);
-}
-void ASBHero::TryParry()
-{
-    if (!CombatData || Action!=ESBHeroAction::Ready || !Spend(CombatData->Parry.Cost)) return;
-    BeginAction(ESBHeroAction::Parry,TEXT("Parry"),CombatData->Parry.Duration);
-    PlayCue(TEXT("Shield"),.26f,1.32f);
+    ESBHeroAction Next=BufferedAction;
+    BufferedAction=ESBHeroAction::Ready;
+    Action=ESBHeroAction::Ready;
+    Combat->Cancel();
+    if (Next!=ESBHeroAction::Ready) ExecuteAction(Next,BufferedDirection);
 }
 void ASBHero::ReceivePattern(float Damage,bool bSword)
 {
@@ -197,11 +296,12 @@ void ASBHero::ReceivePattern(float Damage,bool bSword)
     Health=FMath::Max(0.f,Health-Damage); HitPulse=1.f; ImpactCamera(.7f);
     PlayCue(TEXT("BodyHit"));
     if (Health<=0) { bLockedOn=false; BeginAction(ESBHeroAction::Dead,TEXT("Death"),1.25f); }
-    else BeginAction(ESBHeroAction::Hurt,TEXT("Stagger"),.40f);
+    else BeginAction(ESBHeroAction::Hurt,TEXT("HitReact"),.40f);
 }
 void ASBHero::ImpactCamera(float Strength) { Shake=FMath::Max(Shake,Strength); }
 void ASBHero::UpdateCamera(float Dt)
 {
+    if (!FApp::HasFocus()) ResetLookCapture();
     if (IsValid(Knight) && Knight->Health<=0) bLockedOn=false;
     if (bLockedOn && Controller && Knight)
     {
@@ -211,12 +311,12 @@ void ASBHero::UpdateCamera(float Dt)
         const float Near = 1.f-FMath::Clamp((FVector::Dist2D(Focus,GetActorLocation())-82.f)/265.f,0.f,1.f);
         Desired.Yaw += 37.f*Near;
         Desired.Pitch = FMath::Clamp(Desired.Pitch*.42f-9.f-5.f*Near,-22.f,9.f);
-        Controller->SetControlRotation(FMath::RInterpTo(Controller->GetControlRotation(),Desired,Dt,11));
+        Controller->SetControlRotation(FMath::RInterpTo(Controller->GetControlRotation(),Desired,Dt,17));
     }
     Shake=FMath::Max(0.f,Shake-Dt*3.6f);
     const float T=GetWorld()->TimeSeconds;
     Camera->SetRelativeLocation(FVector(0,4.5f*Shake*FMath::Sin(T*106),3.2f*Shake*FMath::Sin(T*87)));
-    Boom->TargetArmLength=FMath::FInterpTo(Boom->TargetArmLength,bLockedOn ? 460.f : 365.f,Dt,5);
+    Boom->TargetArmLength=FMath::FInterpTo(Boom->TargetArmLength,bLockedOn ? 460.f : 365.f,Dt,10);
 }
 void ASBHero::Tick(float Dt)
 {
@@ -227,6 +327,7 @@ void ASBHero::Tick(float Dt)
     ActionElapsed+=Dt;
     if (Action==ESBHeroAction::Dead) return;
     const bool bMoving=!Stick.IsNearlyZero();
+    if (bNeedsSprintRecovery && Stamina>=CombatData->SprintCost) bNeedsSprintRecovery=false;
     const bool bSprint=bMoving && bSprintHeld && !bNeedsSprintRecovery && Action==ESBHeroAction::Ready;
     if (bSprint && !Spend(Dt*CombatData->SprintCost)) bNeedsSprintRecovery=true;
     if (GetWorld()->TimeSeconds-SpentAt>CombatData->RegenDelay)
@@ -260,12 +361,8 @@ void ASBHero::Tick(float Dt)
         const float Step=FMath::Min(ActionElapsed,.14f)-FMath::Min(Previous,.14f);
         if (Step>0) AddActorWorldOffset(GetActorForwardVector()*Step*165.f,true);
         Combat->TraceCut(*this,Knight,Dummy,W,Second,Previous,ActionElapsed);
-        if (ActionElapsed>=W.Duration)
-        {
-            const bool Chain=bQueuedCombo && !Second; bQueuedCombo=false; Combat->Cancel();
-            Action=ESBHeroAction::Ready;
-            if (Chain) BeginCut(true);
-        }
+        if (ActionElapsed>=W.Duration || (ActionElapsed>=W.Close && IsDefense(BufferedAction)))
+            FinishAction();
         break;
     }
     case ESBHeroAction::Evade:
@@ -275,11 +372,11 @@ void ASBHero::Tick(float Dt)
         // Cosine easing keeps the whole 280 cm displacement independent of frame rate.
         float Travel=.5f*(FMath::Cos(P*PI)-FMath::Cos(T*PI));
         AddActorWorldOffset(DodgeDirection*280.f*Travel,true);
-        if (T>=1) Action=ESBHeroAction::Ready;
+        if (T>=1) FinishAction();
         break;
     }
-    case ESBHeroAction::Parry: if (ActionElapsed>=CombatData->Parry.Duration) Action=ESBHeroAction::Ready; break;
-    case ESBHeroAction::Hurt: if (ActionElapsed>=.4f) Action=ESBHeroAction::Ready; break;
+    case ESBHeroAction::Parry: if (ActionElapsed>=ActionDuration) FinishAction(); break;
+    case ESBHeroAction::Hurt: if (ActionElapsed>=ActionDuration) FinishAction(); break;
     default: break;
     }
 }

@@ -1,5 +1,6 @@
 #include "Core/SBPlayerController.h"
 #include "Core/SBGameMode.h"
+#include "Player/SBHero.h"
 #include "UI/SBCombatOverlay.h"
 #include "Kismet/KismetSystemLibrary.h"
 
@@ -33,6 +34,7 @@ void ASBPlayerController::LeaveGame()
 
 void ASBPlayerController::ShowOverlay(bool bVisible,bool bPaused)
 {
+    if (ASBHero* Hero=Cast<ASBHero>(GetPawn())) Hero->ClearControlInput();
     if (IsLocalController() && bVisible)
     {
         if (!Overlay)

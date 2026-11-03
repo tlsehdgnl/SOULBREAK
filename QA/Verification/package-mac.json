@@ -1,34 +1,25 @@
 {
-  "engine": "Unreal Engine 5.8.4",
-  "configuration": "Mac Development packaged application",
-  "map": "/Game/SoulBreak/Maps/L_Cathedral",
-  "fixed_fps": 60,
-  "rendering": "NullRHI",
-  "sha256": {
-    "Contents/MacOS/SoulBreak": "6c305e1a10cbc3fdeb047ed61001364db6c3666bf2fc4164b0868b168d330ece",
-    "Contents/UE/SoulBreak/Content/Paks/SoulBreak-Mac.pak": "a2910e2ef100ed2a734ade09b217a514c962c135578dbd9033dacaad4fb49362",
-    "Contents/UE/SoulBreak/Content/Paks/SoulBreak-Mac.ucas": "fb6aee137a6ec5de4f42da62b66a1a622ec2098e1f61120e14fe94c6e9b5f35c",
-    "Contents/UE/SoulBreak/Content/Paks/SoulBreak-Mac.utoc": "6a08dc7a49885540afa3100ebc14a33d08a2f6622923a8ee7b3a36150896a3e3",
-    "Contents/UE/SoulBreak/Content/Paks/global.ucas": "93bdce076360577b0a6ff3ceb801fd3fe1ac070149a0e0ce775a7c15e731a7ea",
-    "Contents/UE/SoulBreak/Content/Paks/global.utoc": "ca1be178e45027e84f23359d48b5903023d60ffc2efc33dfec76f1251c54919f"
-  },
   "passed": true,
   "failure": "",
   "victory_retries": 10,
   "defeat_retries": 10,
-  "max_reload_to_input_seconds": 0.03441,
+  "max_reload_to_input_seconds": 0.05756,
   "method": "PlayerController simulated keys; teleports and injected incoming/phase/lethal hits are deterministic test fixtures. AI, hit resolver, stamina, map reload, move component and Enhanced Input are live.",
   "checks": [
+    {
+      "check": "first normal mouse input rotated camera during startup; oversized recenter warp was discarded",
+      "passed": true
+    },
     {
       "check": "W walks; Tab toggles torso lock on and off",
       "passed": true
     },
     {
-      "check": "left mouse hits dummy once for 20 across repeated traces",
+      "check": "early second click persisted; first swing dealt 20 and spent 15 without shortening recovery",
       "passed": true
     },
     {
-      "check": "buffered left mouse combo damage 50 stamina 35",
+      "check": "buffered two cuts dealt 50 and consumed 35; dodge took priority and consumed 22 only after the active window closed",
       "passed": true
     },
     {
@@ -36,7 +27,19 @@
       "passed": true
     },
     {
-      "check": "right mouse parried simulated sword; E consumed charge and struck dummy for 40",
+      "check": "right mouse parried simulated sword; queued E began at parry recovery and struck dummy for 40",
+      "passed": true
+    },
+    {
+      "check": "fresh parry after oath impact interrupted attack recovery immediately",
+      "passed": true
+    },
+    {
+      "check": "early defense during parry cooldown did not execute later",
+      "passed": true
+    },
+    {
+      "check": "held and released Shift switched 650/450 speed while movement stayed held",
       "passed": true
     },
     {
@@ -52,7 +55,7 @@
       "passed": true
     },
     {
-      "check": "reload 01 fresh HP arm phase AI input; 0.034s to W movement",
+      "check": "reload 01 fresh HP arm phase AI input; 0.058s to W movement",
       "passed": true
     },
     {
@@ -68,80 +71,115 @@
       "passed": true
     },
     {
-      "check": "reload 02 fresh HP arm phase AI input; 0.033s to W movement",
+      "check": "reload 02 fresh HP arm phase AI input; 0.054s to W movement",
       "passed": true
     },
     {
-      "check": "reload 03 fresh HP arm phase AI input; 0.034s to W movement",
+      "check": "reload 03 fresh HP arm phase AI input; 0.056s to W movement",
       "passed": true
     },
     {
-      "check": "reload 04 fresh HP arm phase AI input; 0.034s to W movement",
+      "check": "reload 04 fresh HP arm phase AI input; 0.054s to W movement",
       "passed": true
     },
     {
-      "check": "reload 05 fresh HP arm phase AI input; 0.034s to W movement",
+      "check": "reload 05 fresh HP arm phase AI input; 0.052s to W movement",
       "passed": true
     },
     {
-      "check": "reload 06 fresh HP arm phase AI input; 0.032s to W movement",
+      "check": "reload 06 fresh HP arm phase AI input; 0.050s to W movement",
       "passed": true
     },
     {
-      "check": "reload 07 fresh HP arm phase AI input; 0.034s to W movement",
+      "check": "reload 07 fresh HP arm phase AI input; 0.051s to W movement",
       "passed": true
     },
     {
-      "check": "reload 08 fresh HP arm phase AI input; 0.033s to W movement",
+      "check": "reload 08 fresh HP arm phase AI input; 0.051s to W movement",
       "passed": true
     },
     {
-      "check": "reload 09 fresh HP arm phase AI input; 0.034s to W movement",
+      "check": "reload 09 fresh HP arm phase AI input; 0.051s to W movement",
       "passed": true
     },
     {
-      "check": "reload 10 fresh HP arm phase AI input; 0.033s to W movement",
+      "check": "reload 10 fresh HP arm phase AI input; 0.052s to W movement",
       "passed": true
     },
     {
-      "check": "reload 11 fresh HP arm phase AI input; 0.034s to W movement",
+      "check": "reload 11 fresh HP arm phase AI input; 0.050s to W movement",
       "passed": true
     },
     {
-      "check": "reload 12 fresh HP arm phase AI input; 0.034s to W movement",
+      "check": "reload 12 fresh HP arm phase AI input; 0.050s to W movement",
       "passed": true
     },
     {
-      "check": "reload 13 fresh HP arm phase AI input; 0.034s to W movement",
+      "check": "reload 13 fresh HP arm phase AI input; 0.049s to W movement",
       "passed": true
     },
     {
-      "check": "reload 14 fresh HP arm phase AI input; 0.034s to W movement",
+      "check": "reload 14 fresh HP arm phase AI input; 0.052s to W movement",
       "passed": true
     },
     {
-      "check": "reload 15 fresh HP arm phase AI input; 0.034s to W movement",
+      "check": "reload 15 fresh HP arm phase AI input; 0.051s to W movement",
       "passed": true
     },
     {
-      "check": "reload 16 fresh HP arm phase AI input; 0.034s to W movement",
+      "check": "reload 16 fresh HP arm phase AI input; 0.051s to W movement",
       "passed": true
     },
     {
-      "check": "reload 17 fresh HP arm phase AI input; 0.034s to W movement",
+      "check": "reload 17 fresh HP arm phase AI input; 0.052s to W movement",
       "passed": true
     },
     {
-      "check": "reload 18 fresh HP arm phase AI input; 0.034s to W movement",
+      "check": "reload 18 fresh HP arm phase AI input; 0.053s to W movement",
       "passed": true
     },
     {
-      "check": "reload 19 fresh HP arm phase AI input; 0.033s to W movement",
+      "check": "reload 19 fresh HP arm phase AI input; 0.052s to W movement",
       "passed": true
     },
     {
-      "check": "reload 20 fresh HP arm phase AI input; 0.033s to W movement",
+      "check": "reload 20 fresh HP arm phase AI input; 0.051s to W movement",
       "passed": true
     }
-  ]
+  ],
+  "input_measurement": "Engine simulation time between a synthetic key press and the first post-update tick observing its action; excludes physical input, rendering and display latency.",
+  "timings": [
+    {
+      "case": "early_second_click",
+      "observed": true,
+      "press_game_s": 0.516667,
+      "press_at_previous_action_s": 0.15,
+      "first_observed_game_s": 0.966667,
+      "frames": 27,
+      "sim_ms": 450.0
+    },
+    {
+      "case": "buffered_dodge",
+      "observed": true,
+      "press_game_s": 1.25,
+      "press_at_previous_action_s": 0.283333,
+      "first_observed_game_s": 1.366667,
+      "frames": 7,
+      "sim_ms": 116.667
+    },
+    {
+      "case": "late_parry",
+      "observed": true,
+      "press_game_s": 3.583334,
+      "press_at_previous_action_s": 0.55,
+      "first_observed_game_s": 3.6,
+      "frames": 1,
+      "sim_ms": 16.667
+    }
+  ],
+  "configuration": "Mac Development packaged application",
+  "rendering": "NullRHI",
+  "fixed_fps": 60,
+  "engine": "5.8.4",
+  "executable_sha256": "498cfe6d557f20775e214a3c3d91e07dad04dcc3be4f7edeefc8dba0b610e8a2"
 }

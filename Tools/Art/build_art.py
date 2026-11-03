@@ -2,9 +2,14 @@
 import bpy, math, json
 from mathutils import Vector, Euler, Quaternion
 from pathlib import Path
+import sys
+sys.path.insert(0,str(Path(__file__).resolve().parent))
+import forged_detail as detail
+from surface_marks import bake_texture
 from math import sin, cos, pi
 out = Path(__file__).resolve().parents[2] / 'Saved/SBArt'
 out.mkdir(parents=True, exist_ok=True)
+bake_texture(out/'T_ArmorerMarks.tga')
 bpy.ops.wm.read_factory_settings(use_empty=True)
 scene=bpy.context.scene
 scene.unit_settings.system='METRIC'
@@ -19,6 +24,9 @@ palette={
  'Azure':(.024,.22,.245,0,.69,0),'DeepBlue':(.021,.078,.12,0,.80,0),'Wine':(.23,.025,.037,0,.76,0),
  'Crimson':(.49,.049,.044,0,.65,0),'Obsidian':(.017,.021,.035,.25,.38,0),
  'Soul':(.035,.78,.78,.1,.31,2.2),'Ember':(1,.25,.034,0,.43,2.4),'Flame':(1,.67,.17,0,.44,4.5),
+ 'StormSteel':(.115,.174,.224,.68,.34,0),'Mail':(.04,.064,.083,.62,.53,0),
+ 'SeaSilk':(.018,.125,.17,.06,.69,0),'Lining':(.65,.51,.28,.18,.53,0),
+ 'Velvet':(.115,.012,.037,0,.85,0),'Patina':(.045,.11,.115,.53,.57,0),
  'Glass':(.019,.27,.36,.15,.31,1.4),'GlassGold':(.83,.32,.045,.1,.4,1.5),'GlassRed':(.40,.04,.094,.2,.5,1.0)}
 (out/'palette.json').write_text(json.dumps(palette))
 mats={}
@@ -26,7 +34,7 @@ for k,c in palette.items():
  m=bpy.data.materials.new(k); m.diffuse_color=(*c[:3],1); mats[k]=m
 class Geometry:
  def __init__(self):
-  self.v=[]; self.f=[]; self.m=[]; self.groups={}
+  self.v=[]; self.f=[]; self.m=[]; self.groups={}; self.weighted={}
  def surface(self, verts, faces, mat, bone=None):
   start=len(self.v); self.v.extend(verts)
   self.f.extend([tuple(start+i for i in f) for f in faces]); self.m.extend([mat]*len(faces))
@@ -60,6 +68,9 @@ class Geometry:
     co=mesh.vertices[mesh.loops[loop].vertex_index].co
     uv.data[loop].uv=(co[(axis+1)%3]/100,co[(axis+2)%3]/100)
   for b,indices in self.groups.items():ob.vertex_groups.new(name=b).add(indices,1,'REPLACE')
+  for i,weights in self.weighted.items():
+   for b,w in weights.items():
+    if w>0: (ob.vertex_groups.get(b) or ob.vertex_groups.new(name=b)).add([i],w,'REPLACE')
   return ob
 def export(name,objects,anim=False):
  bpy.ops.object.select_all(action='DESELECT')
@@ -96,6 +107,7 @@ def sword(g,x,y,z,knight=True,bind=None):
    g.panel([pos(0,b,-1.5),pos(side*v,b,0),pos(side*w,a,0),pos(0,a,-2)],'Steel',bind,.5)
  g.beam(pos(0,16,2.5),pos(0,69,1.8),1.05,.55,'Ember' if knight else 'Soul',bind,5)
  g.beam(pos(0,-15,0),pos(0,-11,0),3.1,2.5,'Gilt',bind,6)
+ detail.sword_mount(g,pos,knight,bind)
 def figure(knight):
  g=Geometry(); plate='Iron' if knight else 'Steel'; cloth='Wine' if knight else 'Azure'
  def shell(p,rings,m,b,n=8):g.rings(p,rings,m,b,n)
@@ -111,8 +123,6 @@ def figure(knight):
  for s in (-1,1):
   g.panel([(s*1,-14,96),(s*16,-11,96),(s*20,-10,64),(s*9,-16,55)],cloth,'Pelvis',2)
   g.beam((s*3,-15,92),(s*10,-17,60),1.5,1,'Gilt','Pelvis',4)
-  g.panel([(s*5,10,145),(s*24,6,138),(s*29,23,62),(s*7,26,50)],'Crimson' if knight else 'DeepBlue','Chest',2)
-  g.beam((s*19,11,134),(s*24,24,65),1.4,.7,'Bronze' if knight else 'Azure','Chest')
  # Helm: hooded turquoise pilgrim or crowned, split-visor knight.
  shell((0,0,0),[(146,9,9,0),(151,13,12,0),(165,15,14,-1),(177,12,11,0),(183,4,5,2)],plate if knight else 'DeepBlue','Head',10)
  if knight:
@@ -147,67 +157,12 @@ def figure(knight):
   g.beam((s*13,-1,44),(s*14,0,11),7,4.3,plate,sh)
   g.beam((s*13,-8,42),(s*14,-5,15),1.8,1,'Gilt',sh,5)
   shell((s*14,-5,1),[(0,7,14,-2),(5,7.8,15,-3),(12,6,9,2)],'Iron',ft)
- if knight:
-  # Tall kite shield fixed to left forearm, fluted face with solar boss.
-  x=34;y=-12
-  pts=[(x-16,y,114),(x,y-3,122),(x+16,y,114),(x+15,y,88),(x,y-2,62),(x-15,y,88)]
-  g.panel(pts,'Iron','ForearmL',4)
-  for a,b in zip(pts,pts[1:]+pts[:1]):g.beam(a,b,1.7,1.7,'Gilt','ForearmL',5)
-  for v in ((x-12,y-1,109),(x+12,y-1,109),(x,y-3,67)):g.beam((x,y-6,100),v,2,1,'Bronze','ForearmL')
-  g.beam((x,y-3,100),(x,y-9,100),6,2,'Gilt','ForearmL')
+ detail.finish(g,knight)
  sword(g,-31,-5,82,knight,'HandR')
  return g
 for name,knight in [('Hero',False),('Knight',True)]:
  ob=figure(knight).object(name); ob.parent=rig; mod=ob.modifiers.new('Rig','ARMATURE');mod.object=rig
  export('SK_'+name,[ob,rig]); bpy.data.objects.remove(ob,do_unlink=True)
 g=Geometry();sword(g,0,0,0);ob=g.object('FallenBlade');export('SM_FallenBlade',[ob]);bpy.data.objects.remove(ob,do_unlink=True)
-# Rotations use model-space axes in the rest pose; the armature supplies parent-relative motion.
-def pose(**kw):return kw
-idle=pose(UpperArmR=(-12,-9,-6),ForearmR=(-31,0,8),UpperArmL=(4,8,0),ForearmL=(-16,0,0),ThighR=(-5,0,0),ThighL=(5,0,0))
-def keyframe(frame,angles):
- for b in rig.pose.bones:
-  e=angles.get(b.name,(0,0,0)); basis=arm.bones[b.name].matrix_local.to_quaternion()
-  b.rotation_mode='QUATERNION'; rotation=basis.inverted()@Euler(tuple(math.radians(v) for v in e)).to_quaternion()@basis
-  rotation.make_compatible(b.rotation_quaternion); b.rotation_quaternion=rotation
-  if b.name=='Pelvis':
-   b.location=basis.inverted()@Vector((0,0,angles.get('hip_height',0)))
-   b.keyframe_insert(data_path='location',frame=frame)
-  b.keyframe_insert(data_path='rotation_quaternion',frame=frame)
-def clip(name,duration,frames):
- action=bpy.data.actions.new(name);rig.animation_data_create();rig.animation_data.action=action
- end=round(duration*30);scene.frame_start=1;scene.frame_end=end+1
- for t,p in frames:keyframe(1+round(t*end),{**idle,**p})
- scene.frame_set(1);export('AN_'+name,[rig],True)
-def walk(a):
- return pose(ThighR=(-a,0,0),ThighL=(a,0,0),ShinR=(max(0,a)*.9,0,0),ShinL=(max(0,-a)*.9,0,0),UpperArmL=(-a*.7,6,0),UpperArmR=(a*.45-10,-9,0),Chest=(0,2,a*.12))
-clip('Idle',2,[(0,{}),(.5,pose(Chest=(-2,0,2),Head=(1,-1,-2),ForearmR=(-34,0,8))),(1,{})])
-clip('Walk',.84,[(0,walk(34)),(.25,walk(0)),(.5,walk(-34)),(.75,walk(0)),(1,walk(34))])
-clip('Run',.60,[(0,walk(56)),(.25,walk(0)),(.5,walk(-56)),(.75,walk(0)),(1,walk(56))])
-wind=pose(Chest=(-5,-4,-32),UpperArmR=(-107,-32,-25),ForearmR=(-50,0,-18),UpperArmL=(-12,20,12))
-cut=pose(Chest=(13,5,54),UpperArmR=(-60,36,54),ForearmR=(-10,0,45),ThighL=(-16,0,0))
-back=pose(Chest=(3,0,40),UpperArmR=(-45,28,62),ForearmR=(-31,0,40))
-wide=pose(Chest=(9,-6,-43),UpperArmR=(-67,-48,-46),ForearmR=(-10,0,-48))
-clip('Cut',.60,[(0,{}),(.24,wind),(.52,cut),(.68,cut),(1,{})])
-clip('ReturnCut',.75,[(0,cut),(.24,back),(.53,wide),(.68,wide),(1,{})])
-clip('SwordSweep',1.60,[(0,{}),(.29,wind),(.4,wind),(.50,cut),(.63,cut),(1,{})])
-brace=pose(Chest=(-5,0,18),UpperArmR=(-62,-17,-15),ForearmR=(-71,0,55),UpperArmL=(-25,12,0),ThighR=(-11,0,0))
-clip('Parry',.5,[(0,{}),(.12,brace),(.40,brace),(1,{})])
-guard=pose(Chest=(-9,0,-19),UpperArmL=(-51,12,0),ForearmL=(-49,0,0))
-push=pose(Chest=(17,0,-30),UpperArmL=(-78,-10,-12),ForearmL=(-9,0,0),ThighR=(-25,0,0))
-clip('Bash',1.27,[(0,{}),(.31,guard),(.36,guard),(.45,push),(.6,push),(1,{})])
-lift=pose(Chest=(-12,-10,-9),ThighL=(-77,0,0),ShinL=(92,0,0),UpperArmL=(-32,36,0),UpperArmR=(-22,-39,0))
-land=pose(Chest=(24,12,5),ThighL=(-25,0,0),ShinL=(31,0,0),ThighR=(-17,0,0),ShinR=(27,0,0))
-clip('Stomp',2.05,[(0,{}),(.34,lift),(.43,lift),(.51,land),(.72,land),(1,{})])
-tuck=pose(Chest=(40,0,0),Head=(23,0,0),ThighR=(-84,0,0),ThighL=(-72,0,0),ShinR=(96,0,0),ShinL=(99,0,0),UpperArmR=(-61,0,0),UpperArmL=(-71,0,0))
-# Pelvis rotation keeps the roll in place while actor movement supplies travel.
-clip('Evade',.48,[(0,{}),(.18,{**tuck,'Pelvis':(40,0,0),'hip_height':-28}),(.36,{**tuck,'Pelvis':(118,0,0),'hip_height':-19}),
- (.57,{**tuck,'Pelvis':(209,0,0),'hip_height':-15}),(.78,{**tuck,'Pelvis':(307,0,0),'hip_height':-27}),(1,{'Pelvis':(360,0,0)})])
-recoil=pose(Chest=(-28,-17,-14),Head=(-16,0,9),UpperArmL=(12,40,0),UpperArmR=(20,-49,0),ThighR=(-23,0,0),ShinR=(36,0,0))
-clip('Stagger',1,[(0,{}),(.16,recoil),(.49,recoil),(1,{})])
-fall=pose(Chest=(24,-13,-10),Head=(24,0,0),UpperArmL=(-24,43,0),UpperArmR=(-31,-37,0),ThighL=(-37,0,0),ShinL=(51,0,0))
-clip('Death',1.25,[(0,{}),(.22,recoil),(.45,{**fall,'Pelvis':(-18,36,-5),'hip_height':-37}),(.79,{**fall,'Pelvis':(-26,87,-9),'hip_height':-71}),(1,{**fall,'Pelvis':(-25,83,-9),'hip_height':-72})])
-charge=pose(Pelvis=(2,-6,-9),Chest=(20,-8,-41),Head=(-10,0,26),UpperArmR=(16,-30,-47),ForearmR=(-38,0,-29),
- UpperArmL=(-30,14,25),ForearmL=(-42,0,4),ThighL=(-32,0,0),ShinL=(41,0,0),ThighR=(11,0,0),hip_height=-10)
-rise=pose(Pelvis=(0,0,24),Chest=(-12,9,43),Head=(5,-11,-25),UpperArmR=(-128,21,59),ForearmR=(-32,-12,39),
- UpperArmL=(7,23,4),ForearmL=(-15,0,0),ThighL=(-18,0,0),ShinL=(26,0,0))
-clip('OathCut',.85,[(0,{}),(.21,charge),(.32,charge),(.43,pose(Chest=(15,0,8),UpperArmR=(-52,-14,-8),ForearmR=(-34,0,3),ThighL=(-35,0,0),ShinL=(23,0,0))),(.57,rise),(.72,rise),(1,{})])
+from choreography import Performance
+Performance(arm,rig,scene,export).author_all()

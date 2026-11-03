@@ -1,5 +1,5 @@
 {
-  "reportCreatedOn": "2026.11.03-02.54.04",
+  "reportCreatedOn": "2026.11.03-05.06.33",
   "succeeded": 4,
   "succeededWithWarnings": 0,
   "failed": 0,
@@ -12,22 +12,22 @@
     {
       "fullTestPath": "SoulBreak.Boss.BreakOnce",
       "state": "Success",
-      "duration": 0.008259166032075882
+      "duration": 0.017180126160383224
     },
     {
       "fullTestPath": "SoulBreak.Boss.DeathPriority",
       "state": "Success",
-      "duration": 0.007998835295438766
+      "duration": 0.016727373003959656
     },
     {
       "fullTestPath": "SoulBreak.Combat.Dedup",
       "state": "Success",
-      "duration": 0.008251708000898361
+      "duration": 0.016179542988538742
     },
     {
       "fullTestPath": "SoulBreak.Combat.WindowsAndResources",
       "state": "Success",
-      "duration": 0.008272498846054077
+      "duration": 0.016290582716464996
     }
   ]
 }

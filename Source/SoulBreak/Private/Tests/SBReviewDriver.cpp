@@ -159,7 +159,7 @@ void ASBReviewDriver::Drive(ASBGameMode& Game, ASBHero& Hero, ASBKnight& Knight)
         }
         if ((Bash || Stomp) && ToImpact > 0 && Distance < (Stomp ? 321.f : 180.f))
         {
-            if (ToImpact <= .20f && ToImpact > .085f && Hero.Action == ESBHeroAction::Ready)
+            if (ToImpact <= .20f && ToImpact > .085f && Hero.Action != ESBHeroAction::Evade)
             {
                 const FVector ToCenter = -Hero.GetActorLocation();
                 const FVector Roll = FVector::DotProduct(Flank,ToCenter.GetSafeNormal2D()) < -.2f ? -Flank : Flank;
@@ -181,11 +181,15 @@ void ASBReviewDriver::Drive(ASBGameMode& Game, ASBHero& Hero, ASBKnight& Knight)
         const FVector Radial = (Hero.GetActorLocation() - Knight.GetActorLocation()).GetSafeNormal2D();
         const FVector Tangent = FVector::CrossProduct(FVector::UpVector, Radial);
         MoveToward(Hero, Hero.GetActorLocation() + Tangent*240.f - Radial*(Distance-78.f)*2.5f, 1.f);
+        // A late defensive press can now leave a completed slash instead of waiting for neutral.
+        if (ToImpact<=.17f && ToImpact>.085f && FVector::DotProduct(Radial,Facing)>.61f &&
+            Hero.Action!=ESBHeroAction::Evade && Hero.Stamina>=Hero.CombatData->Evade.Cost)
+            Hero.TryDodge();
         return;
     }
     if (Stomp && ToImpact > 0 && Distance < 321.f)
     {
-        if (ToImpact <= .20f && ToImpact > .085f && Hero.Action == ESBHeroAction::Ready)
+        if (ToImpact <= .20f && ToImpact > .085f && Hero.Action != ESBHeroAction::Evade)
         {
             // Roll through the outer edge then close in again.
             const FVector Radial = (Hero.GetActorLocation()-Knight.GetActorLocation()).GetSafeNormal2D();
@@ -199,7 +203,8 @@ void ASBReviewDriver::Drive(ASBGameMode& Game, ASBHero& Hero, ASBKnight& Knight)
         Stomp ? Knight.CombatData->Stomp.Duration()-Knight.PatternElapsed :
         Sword ? Knight.CombatData->Sweep.Duration()-Knight.PatternElapsed : 2.f;
     if (Hero.bOathReady && RecoveryLeft > .58f) Hero.TryOathCut();
-    else if (RecoveryLeft > .52f && Hero.Stamina > 40.f)
+    else if ((Hero.Action==ESBHeroAction::Ready && RecoveryLeft>.52f && Hero.Stamina>39.f) ||
+             (Hero.Action==ESBHeroAction::Cut && RecoveryLeft>.90f && Hero.Stamina>58.f))
         Hero.TryAttack();
 
 }

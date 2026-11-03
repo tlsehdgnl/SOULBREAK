@@ -219,6 +219,14 @@ void ASBKnight::OnParried()
     if (!bEncounterActive || Action!=ESBKnightAction::SwordSweep || Health<=0) return;
     StopMoving(); Enter(ESBKnightAction::Stagger,1.f);
     Pose(TEXT("Stagger"),false,1,true); HitPulse=1;
+    if (Hero && Hero->GetMesh()->DoesSocketExist(TEXT("BladeBase")))
+    {
+        const FVector Bind=FMath::Lerp(Hero->GetMesh()->GetSocketLocation(TEXT("BladeBase")),
+            Hero->GetMesh()->GetSocketLocation(TEXT("BladeTip")),.58);
+        if (ASBImpact* Glint=GetWorld()->SpawnActor<ASBImpact>(Bind,Hero->GetActorRotation()))
+            Glint->Launch(nullptr,FVector::ZeroVector,Hero->GetActorLocation().Z-Hero->GetCapsuleComponent()->GetScaledCapsuleHalfHeight(),
+                1.f,FLinearColor(.52f,1.35f,1.05f),1.45f);
+    }
 }
 void ASBKnight::BreakArm()
 {
@@ -248,7 +256,7 @@ void ASBKnight::ApplySwordHit(int32 Id,float Damage,bool HitArm)
     if (R==ESBHitResult::Broken || R==ESBHitResult::Phase)
     {
         StopMoving(); Enter(OldPhase!=Phase ? ESBKnightAction::Transition : ESBKnightAction::Stagger,1.f);
-        Pose(TEXT("Stagger"),false,1,true);
+        Pose(R==ESBHitResult::Broken ? TEXT("Sunder") : TEXT("Stagger"),false,1.f,true);
     }
     else if (auto* Fx=GetWorld()->SpawnActor<ASBImpact>(HitArm ? ArmPoint() : GetActorLocation()+GetActorForwardVector()*33.f,GetActorRotation()))
         Fx->Launch(nullptr,FVector::ZeroVector,GetActorLocation().Z-GetCapsuleComponent()->GetScaledCapsuleHalfHeight(),1,HitArm ? FLinearColor(1,.6,.09) : FLinearColor(.25,.85,.95));

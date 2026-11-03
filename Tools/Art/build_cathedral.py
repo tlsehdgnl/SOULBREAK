@@ -37,6 +37,17 @@ palette = {
     'Wick':((.97,.42,.083),.43,0,3.2),'Fire':((1.0,.715,.265),.41,0,4.35),
     'Wax':((.638,.505,.299),.76,0,0),'Rune':((.316,.551,.463),.45,.2,.62)
 }
+palette.update({
+    'Deep':((.017,.025,.044),.84,0,0),'Mortar':((.031,.042,.053),.86,0,0),
+    'SlabA':((.063,.084,.093),.58,0,0),'SlabB':((.081,.100,.106),.59,0,0),
+    'SlabC':((.055,.073,.084),.63,0,0),'SlabD':((.101,.114,.105),.57,0,0),
+    'Parchment':((.30,.291,.250),.67,0,0),'Chalk':((.235,.253,.235),.65,0,0),
+    'Carving':((.152,.179,.189),.72,0,0),'Tracery':((.205,.159,.095),.55,.18,0),
+    'CyanGlass':((.018,.255,.374),.41,.02,.90),'SeaGlass':((.016,.111,.219),.43,.02,.83),
+    'IvoryGlass':((.41,.383,.243),.39,.03,.94),'AmberGlass':((.585,.205,.04),.38,.02,1.01),
+    'RubyGlass':((.343,.031,.072),.40,.02,.95),'Rune':((.18,.35,.32),.41,.10,.30),
+    'Icon':((1.,1.,1.),.52,.24,.41),'Incense':((.23,.36,.49),.9,0,.07)
+})
 (out / 'chapel_materials.json').write_text(json.dumps(palette))
 V=[]; F=[]; M=[]
 def surface(v,f,mat):
@@ -250,6 +261,87 @@ for sx in (-1,1):
         for i in range(15):
             x=sx*(976+rng.uniform(-35,28));y=sy*(394+rng.uniform(-41,56));h=rng.uniform(6,22)
             taper((x,y,0),(x,y,h),3.6,3.3,'Wax');flame(x,y,h,3)
+
+# High altar built into the apse, behind the collision boundary. Its paired
+# pinnacles, crocket leaves and enamel reredos silhouette the knight from across the nave.
+def moulded_base(x,y,z,dx,dy):
+    for h,w,m in [(4,1,'Carving'),(3,.96,'Tracery'),(9,.91,'Deep'),(2,.97,'Gold')]:
+        box(x,y,z+h*.5,dx*w,dy*w,h,m);z+=h
+def finial(x,y,z,h):
+    taper((x,y,z),(x,y,z+h*.14),9,11,'Tracery',8)
+    taper((x,y,z+h*.14),(x,y,z+h*.80),10,2,'Parchment',8)
+    taper((x,y,z+h*.80),(x,y,z+h),3,0,'Gold',6)
+    for a in (0,pi*.5,pi,pi*1.5):
+        for i in (0,1,2):
+            p=(x+cos(a)*(8-i*2),y+sin(a)*(8-i*2),z+h*(.27+i*.17))
+            taper(p,(p[0]+cos(a)*5,p[1]+sin(a)*5,p[2]+9),3,0,'Chalk',5)
+for s in (-1,1):
+    y=137*s;moulded_base(1032,y,0,34,46)
+    post(1033,y,17,279,13)
+    for h,r,m in [(301,16,'Carving'),(309,21,'Tracery'),(317,18,'Parchment')]:
+        taper((1033,y,h),(1033,y,h+7),r,r-1,m)
+    finial(1032,y,324,89)
+    for z in (82,305):
+        box(1041,y,z,44,43,5,'Tracery')
+# Thin actual inset icon foil. The UVs on this panel alone cover the whole illustration.
+icon_x,icon_z,icon_half,icon_h=1037,69,112,326
+corners=[(icon_x,-icon_half,icon_z),(icon_x,icon_half,icon_z),(icon_x,icon_half,icon_z+icon_h),(icon_x,-icon_half,icon_z+icon_h)]
+plate(corners,'Icon')
+for d,r,m in [(1,5,'Iron'),(7,2,'Gold')]:
+    for a,b in zip(corners,corners[1:]+corners[:1]):
+        rod((a[0]-d,a[1],a[2]),(b[0]-d,b[1],b[2]),r,m,8)
+moulded_base(1047,0,6,59,331)
+box(1035,0,42,55,309,34,'Deep')
+box(1033,0,61,61,318,6,'Chalk')
+for j in range(-3,4):
+    y=j*39
+    for k in (-1,1):
+        rod((1008,y,48),(1008,y+k*13,37),1.3,'Gold',5)
+        rod((1008,y+k*13,37),(1008,y,28),1.3,'Tracery',5)
+for k in (-1,1):
+    arch('x',1,1049,0,395,116+k*4,52+k*4,3,'Gold' if k==1 else 'Tracery',16)
+for i in range(-5,6):
+    finial(1033,i*21,397+(1-abs(i)/6)*31,20 if i%2 else 29)
+# Narrow blind-arcade bays carved beneath the clerestory. The little cinquefoil
+# crowns and dark recesses remain readable even when the local lamps are out.
+for axis in ('x','y'):
+    for sg in (-1,1):
+        w=1110 if axis=='x' else 1060
+        for center in [-867,-438,438,867]:
+            for delta in [-70,0,70]:
+                t=center+delta
+                wallbox(axis,sg,w,t,174,61,5,170,'Deep',40)
+                for side in (-1,1):
+                    rod(wallpoint(axis,sg,w,t+side*26,94,44),wallpoint(axis,sg,w,t+side*26,207,44),3,'Carving',6)
+                arch(axis,sg,w,t,207,26,54,3,'Tracery',44)
+                for side in (-1,1):
+                    arch(axis,sg,w,t+side*13,203,13,33,1.8,'Chalk',45)
+                circle_wall(axis,sg,w,t,240,5,1.5,'Gold',45,10)
+                # A foliated molding sits inside each panel.
+                for k in (0,1,2):
+                    zz=123+k*21
+                    a=wallpoint(axis,sg,w,t,zz,46)
+                    b=wallpoint(axis,sg,w,t+(-1 if k%2 else 1)*8,zz+12,47)
+                    taper(a,b,2.3,.1,'Tracery',5)
+# Thin stone spokes and brass nails articulate the rhythm of the vaulted ceiling.
+for x in (-480,0,480):
+    for s in (-1,1):
+        path=[(x+q, s*(742+q*.43),888-q*.15) for q in range(-430,431,43)]
+        for a,b in zip(path,path[1:]):rod(a,b,4.8,'Carving',6)
+for r in [286,326]:
+    for j in range(32):
+        a=j*pi/16
+        p=lambda k,d:(60+(r+k)*cos(a)-d*sin(a),(r+k)*sin(a)+d*cos(a),.45)
+        plate([p(-5,0),p(0,-2.5),p(5,0),p(0,2.5)],'Burnished')
+# Four shafts in the air above the side chapels, with fading ends and cross-section.
+# Each is a two-triangle strip rather than a scene-wide volumetric scattering pass.
+for sx,sy in [(-430,-1),(460,-1),(-440,1),(455,1)]:
+    top=Vector((sx,sy*995,579));foot=Vector((sx+207,sy*132,38))
+    for shift in (-36,18):
+        a=top+Vector((shift,0,0));b=foot+Vector((shift*1.3,0,0))
+        verts=[a+Vector((-21,0,0)),a+Vector((21,0,0)),b+Vector((52,0,0)),b+Vector((-52,0,0))]
+        plate(verts,'Incense')
+
 # Export with world-oriented UVs so that mineral and fabric detail stays on scale.
 mesh=bpy.data.meshes.new('Nave');mesh.from_pydata(V,[],F);mesh.update();ob=bpy.data.objects.new('Nave',mesh);scene.collection.objects.link(ob)
 slots=list(dict.fromkeys(M))
@@ -261,7 +353,12 @@ for poly,name in zip(mesh.polygons,M):
     axis=max(range(3),key=lambda i:abs(n[i]))
     i,j=((1,2),(0,2),(0,1))[axis]
     for loop in poly.loop_indices:
-        co=mesh.vertices[mesh.loops[loop].vertex_index].co;uv.data[loop].uv=(co[i]/182,co[j]/182)
+        co=mesh.vertices[mesh.loops[loop].vertex_index].co
+        if name=='Icon':
+            uv.data[loop].uv=((co.y+icon_half)/(icon_half*2),(co.z-icon_z)/icon_h)
+        elif name=='Incense':
+            uv.data[loop].uv=[(0,1),(1,1),(1,0),(0,0)][loop-poly.loop_start]
+        else:uv.data[loop].uv=(co[i]/182,co[j]/182)
 bpy.context.view_layer.objects.active=ob;ob.select_set(True)
 bpy.ops.export_scene.fbx(filepath=str(out/'SM_Nave.fbx'),use_selection=True,add_leaf_bones=False,bake_anim=False,axis_forward='-Y',axis_up='Z',apply_unit_scale=True,mesh_smooth_type='FACE')
 print('SOULBREAK chapel:',len(V),'vertices;',len(F),'polygons;',len(slots),'materials.')

@@ -1,0 +1,137 @@
+{
+  "method": "Standalone NullRHI; forced press/release events use the regular Enhanced Input mappings. Times count fixed simulation frames until the first property observation of the action. This includes command/query scheduling and excludes physical mouse, rendering and display latency.",
+  "baseline_release": {
+    "method": "Standalone NullRHI; forced press/release events use the regular Enhanced Input mappings. Times count fixed simulation frames until the first property observation of the action. This includes command/query scheduling and excludes physical mouse, rendering and display latency.",
+    "runtime": "packaged Development",
+    "code_sha256": "6c305e1a10cbc3fdeb047ed61001364db6c3666bf2fc4164b0868b168d330ece",
+    "cases": [
+      {
+        "case": "early_second_click",
+        "fixed_fps": 30,
+        "attack_press_frame": 11,
+        "cut_observed_frame": 13,
+        "followup_press_frame": 17,
+        "followup_observed_frame": null,
+        "press_to_observed_sim_ms": null,
+        "observed_until_frame": 50
+      },
+      {
+        "case": "buffered_dodge",
+        "fixed_fps": 30,
+        "attack_press_frame": 11,
+        "cut_observed_frame": 13,
+        "followup_press_frame": 19,
+        "followup_observed_frame": null,
+        "press_to_observed_sim_ms": null,
+        "observed_until_frame": 50
+      },
+      {
+        "case": "late_parry",
+        "fixed_fps": 30,
+        "attack_press_frame": 11,
+        "cut_observed_frame": 13,
+        "followup_press_frame": 25,
+        "followup_observed_frame": null,
+        "press_to_observed_sim_ms": null,
+        "observed_until_frame": 50
+      },
+      {
+        "case": "early_second_click",
+        "fixed_fps": 60,
+        "attack_press_frame": 21,
+        "cut_observed_frame": 23,
+        "followup_press_frame": 33,
+        "followup_observed_frame": null,
+        "press_to_observed_sim_ms": null,
+        "observed_until_frame": 100
+      },
+      {
+        "case": "buffered_dodge",
+        "fixed_fps": 60,
+        "attack_press_frame": 21,
+        "cut_observed_frame": 23,
+        "followup_press_frame": 36,
+        "followup_observed_frame": null,
+        "press_to_observed_sim_ms": null,
+        "observed_until_frame": 100
+      },
+      {
+        "case": "late_parry",
+        "fixed_fps": 60,
+        "attack_press_frame": 21,
+        "cut_observed_frame": 23,
+        "followup_press_frame": 48,
+        "followup_observed_frame": null,
+        "press_to_observed_sim_ms": null,
+        "observed_until_frame": 100
+      }
+    ]
+  },
+  "revised_release": {
+    "method": "Standalone NullRHI; forced press/release events use the regular Enhanced Input mappings. Times count fixed simulation frames until the first property observation of the action. This includes command/query scheduling and excludes physical mouse, rendering and display latency.",
+    "runtime": "packaged Development",
+    "code_sha256": "498cfe6d557f20775e214a3c3d91e07dad04dcc3be4f7edeefc8dba0b610e8a2",
+    "cases": [
+      {
+        "case": "early_second_click",
+        "fixed_fps": 30,
+        "attack_press_frame": 11,
+        "cut_observed_frame": 13,
+        "followup_press_frame": 17,
+        "followup_observed_frame": 30,
+        "press_to_observed_sim_ms": 433.333,
+        "observed_until_frame": 50
+      },
+      {
+        "case": "buffered_dodge",
+        "fixed_fps": 30,
+        "attack_press_frame": 11,
+        "cut_observed_frame": 13,
+        "followup_press_frame": 19,
+        "followup_observed_frame": 22,
+        "press_to_observed_sim_ms": 100.0,
+        "observed_until_frame": 50
+      },
+      {
+        "case": "late_parry",
+        "fixed_fps": 30,
+        "attack_press_frame": 11,
+        "cut_observed_frame": 13,
+        "followup_press_frame": 25,
+        "followup_observed_frame": 27,
+        "press_to_observed_sim_ms": 66.667,
+        "observed_until_frame": 50
+      },
+      {
+        "case": "early_second_click",
+        "fixed_fps": 60,
+        "attack_press_frame": 21,
+        "cut_observed_frame": 23,
+        "followup_press_frame": 33,
+        "followup_observed_frame": 58,
+        "press_to_observed_sim_ms": 416.667,
+        "observed_until_frame": 100
+      },
+      {
+        "case": "buffered_dodge",
+        "fixed_fps": 60,
+        "attack_press_frame": 21,
+        "cut_observed_frame": 23,
+        "followup_press_frame": 36,
+        "followup_observed_frame": 42,
+        "press_to_observed_sim_ms": 100.0,
+        "observed_until_frame": 100
+      },
+      {
+        "case": "late_parry",
+        "fixed_fps": 60,
+        "attack_press_frame": 21,
+        "cut_observed_frame": 23,
+        "followup_press_frame": 48,
+        "followup_observed_frame": 50,
+        "press_to_observed_sim_ms": 33.333,
+        "observed_until_frame": 100
+      }
+    ]
+  }
+}

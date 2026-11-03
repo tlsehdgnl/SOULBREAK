@@ -15,7 +15,7 @@ Apple Silicon Mac에서는 **Builds/Shipping/Mac/SoulBreak-Mac-Shipping.app**을
 | W A S D · 마우스 | 이동 · 시점 |
 | 왼쪽 Shift | 달리기 |
 | Space | 이동 방향으로 회피 |
-| 마우스 왼쪽 | 검 베기. 첫 공격 끝부분에서 한 번 더 누르면 2타 |
+| 마우스 왼쪽 | 검 베기. 첫 베기가 시작되고 약 0.13초부터 다음 클릭을 예약해 2타로 연계 |
 | 마우스 오른쪽 | 패링 |
 | E | 패링 성공으로 충전된 서약 절단 |
 | Tab | 기사 고정 또는 해제 |
@@ -41,6 +41,10 @@ python3 Tools/build.py shipping
 
 `package`는 현재 운영체제용 Development 패키지, `shipping`은 Shipping 패키지를 만든다. 결과는 `Builds/Development` 또는 `Builds/Shipping`에 생성된다. SDK·드라이버와 QA 결과는 [검증 기록](QA/Verification/README.md)을 참고한다.
 
+## 공격 직후의 조작
+
+첫 베기의 유효 판정은 0.32초, 두 번째 베기는 0.40초, 서약 절단은 0.48초에 끝난다. 이후에는 공격 회복 중에도 Space나 우클릭으로 즉시 회피·패링에 들어간다. 판정이 끝나기 전 마지막 0.12초에 누른 방어 입력은 마지막 타격을 처리한 직후 실행된다. 연계와 방어가 모두 예약되면 방어가 우선한다. 예약할 때는 자원을 쓰지 않고 동작을 시작할 때 차감한다. 체력 표시 옆에서 예약한 행동과 스태미나 부족을 확인할 수 있다.
+
 ## 전투 구조와 수정 위치
 
 | 위치 | 책임 |
@@ -50,7 +54,7 @@ python3 Tools/build.py shipping
 | `Source/SoulBreak/Private/Combat` | 시간창 내 검 궤적 스윕, 타격당 한 번 적용, 훈련 표적, 파편과 낙검 |
 | `Source/SoulBreak/Private/Boss` · `AI` | 기사의 팔과 페이즈, 공격 취소, 거리·거리각 판정과 패턴 순환 |
 | `Content/SoulBreak/Characters` | 영웅·기사 Blueprint, 직접 제작한 스켈레탈 메시와 공유 뼈대 |
-| `Content/SoulBreak/Animations` | 대기·걷기·달리기, 검격과 역베기, 회피·패링·피격·사망, 기사 전용 패턴과 서약 절단 |
+| `Content/SoulBreak/Animations` | 대기·걷기·달리기·측면/후방 이동, 검격과 역베기, 회피·패링·피격·사망, 기사 전용 패턴과 서약 절단 |
 | `Content/SoulBreak/Data/DA_Combat` | 공격 비용·시간창·피해·사거리, 애니메이션과 효과음 참조 |
 | `Content/SoulBreak/AI` | 기사 Behavior Tree와 Blackboard. C++ 상태에서 부위·페이즈·거리 키 동기화 |
 | `Content/SoulBreak/Maps` · `Environment` · `Audio` | 독립적으로 저장된 성당 맵·건축물·재질, 합성한 효과음과 성당 앰비언스 |

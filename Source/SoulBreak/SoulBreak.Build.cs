@@ -16,6 +16,8 @@ public class SoulBreak : ModuleRules
 			"EnhancedInput",
 			"AIModule",
 			"PhysicsCore",
+			"ProceduralMeshComponent",
+			"SlateCore",
 			"NavigationSystem",
 			"GameplayTasks",
 			"AudioMixer",
@@ -26,7 +28,7 @@ public class SoulBreak : ModuleRules
 			"Slate"
 		});
 
-		PrivateDependencyModuleNames.AddRange(new string[] { });
+		PrivateDependencyModuleNames.Add("RenderCore");
 
 		PublicIncludePaths.AddRange(new string[] {
 			"SoulBreak",

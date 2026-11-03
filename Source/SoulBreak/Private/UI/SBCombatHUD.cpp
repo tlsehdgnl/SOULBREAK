@@ -7,10 +7,12 @@
 #include "Engine/Engine.h"
 #include "Engine/Font.h"
 #include "CanvasItem.h"
+#include "GlobalRenderResources.h"
 
 namespace
 {
-const FLinearColor Ink(.013f,.019f,.024f,.87f);
+const FLinearColor Ink(.008f,.013f,.021f,.84f);
+const FLinearColor Clear(.008f,.013f,.021f,0.f);
 const FLinearColor Paper(.94f,.91f,.80f,1);
 const FLinearColor Gold(.88f,.65f,.30f,1);
 const FLinearColor Muted(.69f,.75f,.74f,1);
@@ -28,14 +30,37 @@ void ASBCombatHUD::Line(float X,float Y,float X2,float Y2,FLinearColor Color,flo
 }
 void ASBCombatHUD::Label(const FString& Text,float X,float Y,float Size,FLinearColor Color,bool Center)
 {
-    UFont* Font = GEngine->GetLargeFont();
-    if (!Font || Text.IsEmpty()) return;
-    const float Scale = Unit * Size / FMath::Max(1.f,static_cast<float>(Font->GetMaxCharHeight()));
+    UFont* Typeface=GEngine->GetLargeFont();
+    if (!Typeface || Text.IsEmpty()) return;
+    const FSlateFontInfo Font(Typeface,FMath::Max(6.f,Size*Unit*.76f),Size>=23.f ? TEXT("Bold") : TEXT("Regular"));
     FCanvasTextItem Item(FVector2D(X*Unit,Y*Unit),FText::FromString(Text),Font,Color);
-    Item.Scale = FVector2D(Scale);
     Item.bCentreX = Center;
     Item.EnableShadow(FLinearColor(0,0,0,.9f),FVector2D(Unit,Unit));
     Canvas->DrawItem(Item);
+}
+void ASBCombatHUD::Wash(float X,float Y,float Width,float Height,FLinearColor Left,FLinearColor Right)
+{
+    FCanvasUVTri Upper, Lower;
+    const FVector2D TL(X*Unit,Y*Unit), TR((X+Width)*Unit,Y*Unit);
+    const FVector2D BL(X*Unit,(Y+Height)*Unit), BR((X+Width)*Unit,(Y+Height)*Unit);
+    Upper.V0_Pos=TL; Upper.V1_Pos=TR; Upper.V2_Pos=BL;
+    Upper.V0_Color=Left; Upper.V1_Color=Right; Upper.V2_Color=Left;
+    Lower.V0_Pos=TR; Lower.V1_Pos=BR; Lower.V2_Pos=BL;
+    Lower.V0_Color=Right; Lower.V1_Color=Right; Lower.V2_Color=Left;
+    Upper.V0_UV=Upper.V1_UV=Upper.V2_UV=FVector2D::ZeroVector;
+    Lower.V0_UV=Lower.V1_UV=Lower.V2_UV=FVector2D::ZeroVector;
+    FCanvasTriangleItem Panel(Upper,GWhiteTexture);
+    Panel.TriangleList.Add(Lower);
+    Panel.BlendMode=SE_BLEND_Translucent;
+    Canvas->DrawItem(Panel);
+}
+void ASBCombatHUD::Sigil(float X,float Y,float Radius,FLinearColor Color)
+{
+    Diamond(X,Y,Radius,Color);
+    Diamond(X,Y,Radius-4,FLinearColor(Color.R,Color.G,Color.B,.44f));
+    Line(X,Y-Radius*.72f,X+2,Y-2,Paper,2);
+    Line(X-2,Y+1,X,Y+Radius*.68f,Color,2);
+    Line(X-5,Y+4,X+5,Y+4,Color);
 }
 void ASBCombatHUD::Diamond(float X,float Y,float R,FLinearColor Color)
 {
@@ -78,50 +103,81 @@ void ASBCombatHUD::DrawHUD()
                 Meter(X-43,Y+21,86,3,Game->Dummy->Health,100,Gold);
             }
         }
-        Box(32,32,282,112,Ink); Box(32,32,3,112,Gold);
-        Label(TEXT("S O U L   B R E A K"),51,44,17,Gold);
-        Label(TEXT("잿빛 대성당"),50,66,33,Paper);
-        Label(TEXT("빛의 선을 넘어 기사에게 도전하세요"),51,112,16,Muted);
-        Box(W-372,H-120,340,92,Ink);
-        Label(TEXT("W A S D   이동     마우스   시점"),W-355,H-109,17,Paper);
-        Label(TEXT("좌클릭   베기     우클릭   패링"),W-355,H-83,17,Paper);
-        Label(TEXT("Space   회피     Tab   고정     F1   조작"),W-355,H-56,16,Gold);
+        Wash(26,26,350,100,Ink,Clear);
+        Sigil(51,67,15,Gold);
+        Label(TEXT("S O U L   B R E A K     /     I"),78,32,14,Gold);
+        Label(TEXT("잿빛 대성당"),76,50,29,Paper);
+        Line(78,88,219,88,FLinearColor(.66,.48,.23,.62));
+        Label(TEXT("성당 안쪽으로 들어가 기사에게 도전하세요"),78,96,15,Muted);
+        Wash(W-343,H-107,319,79,Clear,Ink);
+        Label(TEXT("좌클릭  베기    우클릭  패링"),W-303,H-99,16,Paper);
+        Label(TEXT("Space  회피    Tab  고정    F1  조작"),W-303,H-73,16,Paper);
+        Label(TEXT("WASD  이동    마우스  시점"),W-303,H-48,14,Gold);
     }
 }
 void ASBCombatHUD::Vitals(const ASBGameMode& Game)
 {
-    const float Y = H-95;
-    Box(32,Y,265,65,Ink);
-    Diamond(55,Y+32,14,Gold); Diamond(55,Y+32,8,Aqua); Line(55,Y+20,55,Y+44,Gold);
-    Label(TEXT("순례자"),81,Y+4,17,Paper);
-    Label(FString::Printf(TEXT("%d / 100"),FMath::CeilToInt(Game.Hero->Health)),215,Y+5,14,Muted);
-    Meter(81,Y+30,199,10,Game.Hero->Health,100,Blood);
-    Meter(81,Y+47,199,5,Game.Hero->Stamina,100,Aqua);
+    const float Y=H-88;
+    Wash(22,Y-3,314,64,Ink,Clear);
+    Sigil(54,Y+30,20,Game.Hero->bOathReady ? Aqua : Gold);
+    Label(TEXT("순례자"),85,Y-1,18,Paper);
+    Label(FString::Printf(TEXT("%d"),FMath::CeilToInt(Game.Hero->Health)),268,Y+1,15,Paper);
+    Meter(85,Y+27,204,8,Game.Hero->Health,100,Blood);
+    const bool bLow=Game.Hero->IsStaminaWarningActive();
+    Meter(85,Y+42,204,4,Game.Hero->Stamina,100,bLow ? Gold : Aqua);
+    const TCHAR* Pending=nullptr;
+    switch (Game.Hero->GetBufferedAction())
+    {
+    case ESBHeroAction::Cut:
+    case ESBHeroAction::ReturnCut: Pending=TEXT("연계 준비"); break;
+    case ESBHeroAction::Evade: Pending=TEXT("회피 준비"); break;
+    case ESBHeroAction::Parry: Pending=TEXT("패링 준비"); break;
+    case ESBHeroAction::OathCut: Pending=TEXT("서약 준비"); break;
+    default: break;
+    }
+    if (Pending || bLow) Label(bLow ? TEXT("스태미나 부족") : Pending,157,Y+1,14,bLow ? Gold : Aqua);
+    Line(84,Y+24,289,Y+24,FLinearColor(.66,.51,.29,.62));
+    for (int I=1;I<4;++I) Box(85+51*I,Y+27,1,8,FLinearColor(0,0,0,.5));
 }
 void ASBCombatHUD::Encounter(const ASBGameMode& Game)
 {
     const ASBKnight& Boss = *Game.Knight;
     const float C = W*.5f;
-    Box(C-264,20,528,78,Ink);
-    Label(Boss.Phase == 1 ? TEXT("I    /    칼날의 맹세") : TEXT("II    /    무너진 서약"),C,25,14,Gold,true);
-    Label(TEXT("잿빛 성당의 기사"),C,42,24,Paper,true);
-    Meter(C-246,75,492,8,Boss.Health,400,Blood);
-    Box(W-222,32,190,62,Ink);
-    Label(Boss.bArmBroken ? TEXT("오른팔   ·   파괴됨") : TEXT("오른팔   ·   검 갑주"),W-209,39,17,Boss.bArmBroken ? Gold : Paper);
-    Meter(W-209,70,161,6,Boss.ArmHealth,90,Gold);
+    Wash(C-288,16,288,90,Clear,Ink);
+    Wash(C,16,288,90,Ink,Clear);
+    Label(Boss.Phase==1 ? TEXT("Ⅰ    칼날의 맹세") : TEXT("Ⅱ    무너진 서약"),C,22,15,Gold,true);
+    Label(TEXT("잿빛 성당의 기사"),C,42,25,Paper,true);
+    const float Now=GetWorld()->GetTimeSeconds();
+    if (Boss.Health<PreviousBossHP)
+    {
+        TrailingBossHP=FMath::Max(TrailingBossHP,PreviousBossHP);
+        DamageHoldUntil=Now+.16f;
+    }
+    PreviousBossHP=Boss.Health;
+    if (Now>=DamageHoldUntil)
+        TrailingBossHP=FMath::FInterpConstantTo(TrailingBossHP,Boss.Health,GetWorld()->GetDeltaSeconds(),160.f);
+    Meter(C-225,78,450,7,TrailingBossHP,400,Gold);
+    Box(C-225,78,450*FMath::Clamp(Boss.Health/400.f,0.f,1.f),7,Blood);
+    Box(C-1,78,2,7,FLinearColor(.02,.025,.034,.72));
+    Diamond(C-234,81,4,Gold); Diamond(C+234,81,4,Gold);
+    Wash(W-219,29,189,58,Clear,Ink);
+    Label(Boss.bArmBroken ? TEXT("오른팔  /  파괴됨") : TEXT("오른팔  /  검 갑주"),W-187,35,16,Boss.bArmBroken ? Gold : Paper);
+    Meter(W-185,65,139,4,Boss.ArmHealth,90,Gold);
     if (Boss.bArmBroken && !bSawBreak)
     {
         bSawBreak=true; ArmNoticeUntil=GetWorld()->GetTimeSeconds()+2.3f;
     }
     if (GetWorld()->GetTimeSeconds()<ArmNoticeUntil)
     {
-        Box(C-147,H*.26f,294,58,Ink);
+        Wash(C-160,H*.26f,160,58,Clear,Ink);
+        Wash(C,H*.26f,160,58,Ink,Clear);
         Label(TEXT("A R M O R   B R O K E N"),C,H*.26f+5,15,Gold,true);
         Label(TEXT("검을 든 오른팔 파괴"),C,H*.26f+25,21,Paper,true);
     }
     if (Boss.TelegraphDuration > 0 && Boss.PatternElapsed < Boss.TelegraphDuration && !Boss.PatternLabel.IsEmpty())
     {
-        Box(C-106,H-100,212,47,Ink);
+        Wash(C-130,H-100,130,47,Clear,Ink);
+        Wash(C,H-100,130,47,Ink,Clear);
         Label(Boss.PatternLabel,C,H-95,19,Paper,true);
         Meter(C-90,H-64,180,4,Boss.PatternElapsed,Boss.TelegraphDuration,Gold);
     }
@@ -130,12 +186,18 @@ void ASBCombatHUD::Encounter(const ASBGameMode& Game)
         FVector2D Pt;
         if (PlayerOwner->ProjectWorldLocationToScreen(Boss.GetActorLocation()+FVector(0,0,32),Pt))
             Diamond(Pt.X/Unit,Pt.Y/Unit,7,Paper);
+        if (!Boss.bArmBroken && Game.Hero->GetDistanceTo(Game.Knight)<340 &&
+            PlayerOwner->ProjectWorldLocationToScreen(Boss.ArmPoint(),Pt))
+        {
+            float X=Pt.X/Unit,Y=Pt.Y/Unit;
+            Line(X-8,Y-2,X-4,Y-6,Gold,1.5f); Line(X+4,Y+6,X+8,Y+2,Gold,1.5f);
+        }
     }
     if (Game.Hero->bOathReady)
     {
-        Box(32,H-134,215,31,Ink);
-        Diamond(48,H-119,6,Aqua);
-        Label(TEXT("E   서약 절단 준비"),65,H-132,19,Aqua);
+        Wash(30,H-126,215,31,Ink,Clear);
+        Diamond(48,H-111,6,Aqua);
+        Label(TEXT("E   서약 절단 준비"),65,H-124,19,Aqua);
     }
     if (Game.Hero->ParryPulse > 0) Label(TEXT("완벽한 패링"),C,H*.60f,24,Aqua,true);
     if (Game.Hero->HitPulse > 0)
@@ -159,7 +221,7 @@ void ASBCombatHUD::Guide()
         const float Row=Y+109+I*34;
         Label(Keys[I],X,Row,18,Gold); Label(Acts[I],X+180,Row,18,Paper);
     }
-    Label(TEXT("기사의 오른쪽으로 돌아 검을 든 팔을 노리세요."),X,Y+292,18,Muted);
+    Label(TEXT("베기가 끝나면 회피나 패링으로 바로 전환할 수 있습니다."),X,Y+292,17,Muted);
     Line(X,Y+338,X+408,Y+338,Gold);
     Label(TEXT("Esc / F1   계속      R   재도전      Q   종료"),X,Y+356,17,Paper);
 }

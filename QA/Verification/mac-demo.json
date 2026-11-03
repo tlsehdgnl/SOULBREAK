@@ -1,14 +1,14 @@
 {
   "date": "2026-11-03",
-  "video_sha256": "055f3b85854b7909117e60f40cbbe731719776c115c14a6549f88ff7db8e17d3",
+  "video_sha256": "a258c90b241b56ac2904e687b587aa58f43ea7c0aeacde9a576f4474398aeff1",
   "engine": "5.8.4",
-  "executable_sha256": "6c305e1a10cbc3fdeb047ed61001364db6c3666bf2fc4164b0868b168d330ece",
+  "executable_sha256": "498cfe6d557f20775e214a3c3d91e07dad04dcc3be4f7edeefc8dba0b610e8a2",
   "video": "Builds/Review/Demo/SoulBreak-Demo.mp4",
   "duration_s": 70.0,
   "video_format": "1280x720 H.264 24fps",
   "audio_format": "stereo AAC 48000 Hz",
-  "audio_mean_db": -21.3,
-  "audio_peak_db": -2.8,
+  "audio_mean_db": -22.8,
+  "audio_peak_db": -4.4,
   "capture": "Development Mac package via Metal, offscreen viewport screenshots and captured master audio. A fixed 24Hz input driver operates the real player actions, damage/defense and level restart. No health overrides in demo mode.",
   "events": [
     {
@@ -19,98 +19,78 @@
     {
       "attempt": 1,
       "event": "parry",
-      "time_s": 4.333
-    },
-    {
-      "attempt": 1,
-      "event": "parry",
-      "time_s": 7.375
+      "time_s": 4.292
     },
     {
       "attempt": 1,
       "event": "armbreak",
-      "time_s": 8.167
+      "time_s": 7.125
     },
     {
       "attempt": 1,
       "event": "stomp",
-      "time_s": 9.625
+      "time_s": 8.583
     },
     {
       "attempt": 1,
       "event": "stomp",
-      "time_s": 14.417
+      "time_s": 13.375
     },
     {
       "attempt": 1,
       "event": "stomp",
-      "time_s": 19.208
+      "time_s": 18.167
     },
     {
       "attempt": 1,
       "event": "stomp",
-      "time_s": 24.0
+      "time_s": 22.958
     },
     {
       "attempt": 1,
       "event": "stomp",
-      "time_s": 28.792
+      "time_s": 27.75
     },
     {
       "attempt": 1,
-      "event": "victory",
-      "time_s": 33.458
-    },
-    {
-      "attempt": 2,
-      "event": "engaged",
-      "time_s": 37.167
-    },
-    {
-      "attempt": 2,
-      "event": "parry",
-      "time_s": 38.792
-    },
-    {
-      "attempt": 2,
-      "event": "parry",
-      "time_s": 41.833
-    },
-    {
-      "attempt": 2,
-      "event": "armbreak",
-      "time_s": 42.625
-    },
-    {
-      "attempt": 2,
       "event": "stomp",
-      "time_s": 44.084
+      "time_s": 32.541
     },
     {
-      "attempt": 2,
+      "attempt": 1,
       "event": "stomp",
-      "time_s": 48.875
+      "time_s": 37.333
     },
     {
-      "attempt": 2,
+      "attempt": 1,
       "event": "stomp",
-      "time_s": 53.667
+      "time_s": 42.125
     },
     {
-      "attempt": 2,
+      "attempt": 1,
       "event": "stomp",
-      "time_s": 58.459
+      "time_s": 46.917
     },
     {
-      "attempt": 2,
+      "attempt": 1,
       "event": "stomp",
-      "time_s": 63.251
+      "time_s": 51.709
     },
     {
-      "attempt": 2,
-      "event": "victory",
-      "time_s": 67.917
+      "attempt": 1,
+      "event": "stomp",
+      "time_s": 56.501
+    },
+    {
+      "attempt": 1,
+      "event": "stomp",
+      "time_s": 61.292
+    },
+    {
+      "attempt": 1,
+      "event": "stomp",
+      "time_s": 66.084
     }
   ],
-  "exit_note": "Completed recording on first launch; the game and encoder exited normally (status 0)."
+  "exit_note": "The Development app exited normally. The clip records combat through 70 seconds, ending with the boss at 10 health. Victory and restart are covered separately by the packaged integration audit."
 }

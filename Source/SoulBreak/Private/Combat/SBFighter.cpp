@@ -1,4 +1,6 @@
 #include "Combat/SBFighter.h"
+#include "Combat/SBMotionInstance.h"
+#include "Combat/SBBladeTrailComponent.h"
 #include "Animation/AnimSequence.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/SkeletalMeshComponent.h"
@@ -18,6 +20,8 @@ ASBFighter::ASBFighter()
     GetCharacterMovement()->bOrientRotationToMovement = false;
     GetCharacterMovement()->bUseControllerDesiredRotation = false;
     GetCharacterMovement()->MaxStepHeight = 28.f;
+    auto* BladeTrail = CreateDefaultSubobject<USBBladeTrailComponent>(TEXT("BladeTrail"));
+    BladeTrail->SetupAttachment(RootComponent);
 }
 void ASBFighter::BeginPlay()
 {
@@ -32,6 +36,7 @@ void ASBFighter::LoadFighter(const FString& Name, float DesiredHeight)
     if (!GetMesh()->GetSkeletalMeshAsset())
         if (USkeletalMesh* Mesh = LoadObject<USkeletalMesh>(nullptr,*MeshPath)) GetMesh()->SetSkeletalMesh(Mesh);
     AlignMesh(DesiredHeight);
+    GetMesh()->SetAnimInstanceClass(USBMotionInstance::StaticClass());
     // A soft contact patch anchors the feet even at low shadow scalability.
     auto* Contact=NewObject<UStaticMeshComponent>(this);
     Contact->SetupAttachment(RootComponent);
@@ -45,7 +50,7 @@ void ASBFighter::LoadFighter(const FString& Name, float DesiredHeight)
     Contact->RegisterComponent();
     Clips = CombatData->Animations;
     Cues = CombatData->Sounds;
-    for (const TCHAR* NamePart : {TEXT("Idle"),TEXT("Walk"),TEXT("OathCut"),TEXT("Run"),TEXT("Cut"),TEXT("ReturnCut"),TEXT("Evade"),TEXT("Parry"),TEXT("Stagger"),TEXT("Death"),TEXT("Stomp"),TEXT("SwordSweep"),TEXT("Bash")})
+    for (const TCHAR* NamePart : {TEXT("Idle"),TEXT("KnightIdle"),TEXT("StrafeL"),TEXT("StrafeR"),TEXT("Backstep"),TEXT("Walk"),TEXT("OathCut"),TEXT("Run"),TEXT("Cut"),TEXT("ReturnCut"),TEXT("Evade"),TEXT("Parry"),TEXT("Stagger"),TEXT("Sunder"),TEXT("HitReact"),TEXT("Death"),TEXT("Stomp"),TEXT("SwordSweep"),TEXT("Bash")})
     {
         if (Clips.FindRef(FName(NamePart))) continue;
         const FString Asset = FString::Printf(TEXT("/Game/SoulBreak/Animations/AN_%s.AN_%s"),NamePart,NamePart);
@@ -81,13 +86,20 @@ void ASBFighter::AlignMesh(float DesiredHeight)
 }
 void ASBFighter::Pose(FName Clip, bool bLoop, float Duration, bool bRestart)
 {
-    if (!bRestart && CurrentClip == Clip) return;
-    CurrentClip = Clip;
-    if (TObjectPtr<UAnimSequence>* Sequence = Clips.Find(Clip))
+    if (Clip==TEXT("Idle") && bHeavy && Clips.Contains(TEXT("KnightIdle"))) Clip=TEXT("KnightIdle");
+    if (!bRestart && CurrentClip==Clip) return;
+    UAnimSequence* Sequence=Clips.FindRef(Clip);
+    auto* Motion=Cast<USBMotionInstance>(GetMesh()->GetAnimInstance());
+    if (!Sequence || !Motion) return;
+    auto IsGait=[](FName Name)
     {
-        GetMesh()->PlayAnimation(*Sequence,bLoop);
-        GetMesh()->SetPlayRate(Duration > 0 ? (*Sequence)->GetPlayLength()/Duration : 1.f);
-    }
+        return Name==TEXT("Walk") || Name==TEXT("Run") || Name==TEXT("Backstep") ||
+            Name==TEXT("StrafeL") || Name==TEXT("StrafeR");
+    };
+    const bool MatchStride=bLoop && IsGait(CurrentClip) && IsGait(Clip);
+    const float BlendTime=Clip==TEXT("Parry") ? .04f : Clip==TEXT("Evade") ? .05f : bLoop ? .14f : .08f;
+    Motion->PlayClip(Sequence,bLoop,Duration>0 ? Sequence->GetPlayLength()/Duration : 1.f,BlendTime,MatchStride);
+    CurrentClip=Clip;
 }
 void ASBFighter::PlayCue(FName Name,float Volume,float Pitch)
 {
@@ -102,7 +114,23 @@ void ASBFighter::Face(const FVector& D,float Degrees)
 void ASBFighter::Locomotion(float WalkSpeed)
 {
     float Speed = GetVelocity().Size2D();
-    Pose(Speed < 10 ? FName(TEXT("Idle")) : Speed <= WalkSpeed + 20 ? FName(TEXT("Walk")) : FName(TEXT("Run")),true);
+    FName Gait=TEXT("Idle");
+    if (Speed>10.f)
+    {
+        const FVector Local=GetActorRotation().UnrotateVector(GetVelocity().GetSafeNormal2D());
+        if (FMath::Abs(Local.Y)>.72f) Gait=Local.Y>0 ? TEXT("StrafeR") : TEXT("StrafeL");
+        else if (Local.X<-.3f) Gait=TEXT("Backstep");
+        else Gait=Speed<=WalkSpeed+20.f ? TEXT("Walk") : TEXT("Run");
+    }
+    Pose(Gait,true);
+    if (Speed>10.f)
+    {
+        if (auto* Motion=Cast<USBMotionInstance>(GetMesh()->GetAnimInstance()))
+        {
+            const float Nominal=Gait==TEXT("Run") ? WalkSpeed*1.45f : WalkSpeed;
+            Motion->SetPlayRate(FMath::Clamp(Speed/Nominal,.58f,1.22f));
+        }
+    }
     if (Speed > 40 && GetWorld()->TimeSeconds >= NextStep)
     {
         PlayCue(bHeavy ? TEXT("HeavyStep") : TEXT("Step"), bHeavy ? .45f : .23f);

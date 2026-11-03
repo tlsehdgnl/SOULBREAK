@@ -13,6 +13,8 @@ public:
 private:
     float Unit = 1, W = 0, H = 0;
     void Box(float X,float Y,float Width,float Height,FLinearColor Color);
+    void Wash(float X,float Y,float Width,float Height,FLinearColor Left,FLinearColor Right);
+    void Sigil(float X,float Y,float Radius,FLinearColor Color);
     void Line(float X,float Y,float X2,float Y2,FLinearColor Color,float Weight = 1);
     void Label(const FString& Text,float X,float Y,float Size,FLinearColor Color,bool Center=false);
     void Diamond(float X,float Y,float R,FLinearColor Color);
@@ -23,4 +25,7 @@ private:
     void Result(const ASBGameMode& Game);
     float ArmNoticeUntil = -1;
     bool bSawBreak = false;
+    float PreviousBossHP = 400.f;
+    float TrailingBossHP = 400.f;
+    float DamageHoldUntil = 0.f;
 };
