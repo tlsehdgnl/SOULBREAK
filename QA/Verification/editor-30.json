@@ -1,0 +1,140 @@
+{
+  "engine": "Unreal Engine 5.8.4",
+  "configuration": "Mac Development Editor (-game)",
+  "map": "/Game/SoulBreak/Maps/L_Cathedral",
+  "fixed_fps": 30,
+  "rendering": "NullRHI",
+  "project_assets": "authored Hero/Knight Blueprints, combat tuning asset, behavior tree and blackboard",
+  "passed": true,
+  "failure": "",
+  "victory_retries": 10,
+  "defeat_retries": 10,
+  "max_reload_to_input_seconds": 0.96973,
+  "method": "PlayerController simulated keys; teleports and injected incoming/phase/lethal hits are deterministic test fixtures. AI, hit resolver, stamina, map reload, move component and Enhanced Input are live.",
+  "checks": [
+    {
+      "check": "W walks; Tab toggles torso lock on and off",
+      "passed": true
+    },
+    {
+      "check": "left mouse hits dummy once for 20 across repeated traces",
+      "passed": true
+    },
+    {
+      "check": "buffered left mouse combo damage 50 stamina 35",
+      "passed": true
+    },
+    {
+      "check": "Space dodge travelled 280cm; injected incoming hits inside and outside invulnerability matched",
+      "passed": true
+    },
+    {
+      "check": "right mouse parried simulated sword; E consumed charge and struck dummy for 40",
+      "passed": true
+    },
+    {
+      "check": "5 arm strikes: boss 300, arm 0, one break and P2",
+      "passed": true
+    },
+    {
+      "check": "cancelled windup produced no damage at scheduled impact",
+      "passed": true
+    },
+    {
+      "check": "broken arm: 10 real AI selections saw stomp and bash; zero sword",
+      "passed": true
+    },
+    {
+      "check": "reload 01 fresh HP arm phase AI input; 0.572s to W movement",
+      "passed": true
+    },
+    {
+      "check": "10 body strikes: boss 200, arm 90, P2",
+      "passed": true
+    },
+    {
+      "check": "cancelled windup produced no damage at scheduled impact",
+      "passed": true
+    },
+    {
+      "check": "intact arm: 10 real AI selections saw stomp, bash, sword",
+      "passed": true
+    },
+    {
+      "check": "reload 02 fresh HP arm phase AI input; 0.795s to W movement",
+      "passed": true
+    },
+    {
+      "check": "reload 03 fresh HP arm phase AI input; 0.970s to W movement",
+      "passed": true
+    },
+    {
+      "check": "reload 04 fresh HP arm phase AI input; 0.786s to W movement",
+      "passed": true
+    },
+    {
+      "check": "reload 05 fresh HP arm phase AI input; 0.750s to W movement",
+      "passed": true
+    },
+    {
+      "check": "reload 06 fresh HP arm phase AI input; 0.828s to W movement",
+      "passed": true
+    },
+    {
+      "check": "reload 07 fresh HP arm phase AI input; 0.833s to W movement",
+      "passed": true
+    },
+    {
+      "check": "reload 08 fresh HP arm phase AI input; 0.832s to W movement",
+      "passed": true
+    },
+    {
+      "check": "reload 09 fresh HP arm phase AI input; 0.944s to W movement",
+      "passed": true
+    },
+    {
+      "check": "reload 10 fresh HP arm phase AI input; 0.831s to W movement",
+      "passed": true
+    },
+    {
+      "check": "reload 11 fresh HP arm phase AI input; 0.897s to W movement",
+      "passed": true
+    },
+    {
+      "check": "reload 12 fresh HP arm phase AI input; 0.827s to W movement",
+      "passed": true
+    },
+    {
+      "check": "reload 13 fresh HP arm phase AI input; 0.768s to W movement",
+      "passed": true
+    },
+    {
+      "check": "reload 14 fresh HP arm phase AI input; 0.815s to W movement",
+      "passed": true
+    },
+    {
+      "check": "reload 15 fresh HP arm phase AI input; 0.841s to W movement",
+      "passed": true
+    },
+    {
+      "check": "reload 16 fresh HP arm phase AI input; 0.757s to W movement",
+      "passed": true
+    },
+    {
+      "check": "reload 17 fresh HP arm phase AI input; 0.655s to W movement",
+      "passed": true
+    },
+    {
+      "check": "reload 18 fresh HP arm phase AI input; 0.623s to W movement",
+      "passed": true
+    },
+    {
+      "check": "reload 19 fresh HP arm phase AI input; 0.575s to W movement",
+      "passed": true
+    },
+    {
+      "check": "reload 20 fresh HP arm phase AI input; 0.577s to W movement",
+      "passed": true
+    }
+  ]
+}

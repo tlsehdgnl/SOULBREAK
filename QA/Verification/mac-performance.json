@@ -1,0 +1,72 @@
+{
+  "date": "2026-11-03",
+  "platform": "Mac Development",
+  "engine": "5.8.4",
+  "cpu_gpu": "Apple M5 Pro",
+  "unified_memory_gb": 64,
+  "macos": "27.0.1 (26A434)",
+  "executable_sha256": "6c305e1a10cbc3fdeb047ed61001364db6c3666bf2fc4164b0868b168d330ece",
+  "display": [
+    1920,
+    1080
+  ],
+  "render_scale_percent": 100,
+  "scalability": "Medium",
+  "vsync": false,
+  "render_offscreen": true,
+  "setup": "Right arm broken using the damage resolver. Hero and boss health replenished only in the performance fixture. Actual skill, AI and animation ticks remain active.",
+  "workload": "10-second P2 warm-up followed by 3 consecutive wall-clock windows of at least 60 seconds. CPU, frame, GPU trace enabled. Background desktop applications and build activity were not controlled.",
+  "metric": "Nearest-rank 95th percentile of consecutive gameplay tick wall-clock intervals, including present/render stalls. First/last samples are inside P2.",
+  "exit_note": "All three samples and the full Insights trace were saved. After the game logged a completed shutdown, the traced Mac Development process raised SIGSEGV in log/allocator static destruction (FPageAllocator destructor). The 70s demo and separate Shipping smoke exited normally.",
+  "target_p95_ms": 16.7,
+  "trace": "Builds/Review/Performance/phase2.utrace",
+  "runs": [
+    {
+      "run": 1,
+      "seconds": 60.006,
+      "frames": 7109,
+      "p95_ms": 12.459,
+      "p50_ms": 8.432,
+      "max_ms": 16.876,
+      "passes_target": true,
+      "insights_first_frame_id": 1218,
+      "insights_last_frame_id": 8326,
+      "insights_game_frame_p95_ms": 12.437,
+      "insights_start_s": 11.5315586,
+      "insights_end_s": 71.541338,
+      "median_interval_difference_ms": 1.807
+    },
+    {
+      "run": 2,
+      "seconds": 60.009,
+      "frames": 7071,
+      "p95_ms": 13.351,
+      "p50_ms": 8.523,
+      "max_ms": 17.157,
+      "passes_target": true,
+      "insights_first_frame_id": 8327,
+      "insights_last_frame_id": 15397,
+      "insights_game_frame_p95_ms": 13.309,
+      "insights_start_s": 71.5413435,
+      "insights_end_s": 131.545518,
+      "median_interval_difference_ms": 3.107
+    },
+    {
+      "run": 3,
+      "seconds": 60.01,
+      "frames": 7068,
+      "p95_ms": 13.438,
+      "p50_ms": 8.59,
+      "max_ms": 16.959,
+      "passes_target": true,
+      "insights_first_frame_id": 15398,
+      "insights_last_frame_id": 22465,
+      "insights_game_frame_p95_ms": 13.394,
+      "insights_start_s": 131.545524,
+      "insights_end_s": 191.562264,
+      "median_interval_difference_ms": 3.377
+    }
+  ],
+  "insights": "No-UI TimingInsights.ExportTimingEvents export of the Game Frames track. Windows aligned by run frame count, end-of-window frame counter from the engine log and time within the trace; inspect accompanying CSV for raw trace times.",
+  "trace_sha256": "a60f8265e76f7808d99583063f9c0996a85cccad8df0c4cbd7d2c1e58fddcef9"
+}

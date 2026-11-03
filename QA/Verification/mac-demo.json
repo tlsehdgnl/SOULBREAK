@@ -1,0 +1,116 @@
+{
+  "date": "2026-11-03",
+  "video_sha256": "055f3b85854b7909117e60f40cbbe731719776c115c14a6549f88ff7db8e17d3",
+  "engine": "5.8.4",
+  "executable_sha256": "6c305e1a10cbc3fdeb047ed61001364db6c3666bf2fc4164b0868b168d330ece",
+  "video": "Builds/Review/Demo/SoulBreak-Demo.mp4",
+  "duration_s": 70.0,
+  "video_format": "1280x720 H.264 24fps",
+  "audio_format": "stereo AAC 48000 Hz",
+  "audio_mean_db": -21.3,
+  "audio_peak_db": -2.8,
+  "capture": "Development Mac package via Metal, offscreen viewport screenshots and captured master audio. A fixed 24Hz input driver operates the real player actions, damage/defense and level restart. No health overrides in demo mode.",
+  "events": [
+    {
+      "attempt": 1,
+      "event": "engaged",
+      "time_s": 2.708
+    },
+    {
+      "attempt": 1,
+      "event": "parry",
+      "time_s": 4.333
+    },
+    {
+      "attempt": 1,
+      "event": "parry",
+      "time_s": 7.375
+    },
+    {
+      "attempt": 1,
+      "event": "armbreak",
+      "time_s": 8.167
+    },
+    {
+      "attempt": 1,
+      "event": "stomp",
+      "time_s": 9.625
+    },
+    {
+      "attempt": 1,
+      "event": "stomp",
+      "time_s": 14.417
+    },
+    {
+      "attempt": 1,
+      "event": "stomp",
+      "time_s": 19.208
+    },
+    {
+      "attempt": 1,
+      "event": "stomp",
+      "time_s": 24.0
+    },
+    {
+      "attempt": 1,
+      "event": "stomp",
+      "time_s": 28.792
+    },
+    {
+      "attempt": 1,
+      "event": "victory",
+      "time_s": 33.458
+    },
+    {
+      "attempt": 2,
+      "event": "engaged",
+      "time_s": 37.167
+    },
+    {
+      "attempt": 2,
+      "event": "parry",
+      "time_s": 38.792
+    },
+    {
+      "attempt": 2,
+      "event": "parry",
+      "time_s": 41.833
+    },
+    {
+      "attempt": 2,
+      "event": "armbreak",
+      "time_s": 42.625
+    },
+    {
+      "attempt": 2,
+      "event": "stomp",
+      "time_s": 44.084
+    },
+    {
+      "attempt": 2,
+      "event": "stomp",
+      "time_s": 48.875
+    },
+    {
+      "attempt": 2,
+      "event": "stomp",
+      "time_s": 53.667
+    },
+    {
+      "attempt": 2,
+      "event": "stomp",
+      "time_s": 58.459
+    },
+    {
+      "attempt": 2,
+      "event": "stomp",
+      "time_s": 63.251
+    },
+    {
+      "attempt": 2,
+      "event": "victory",
+      "time_s": 67.917
+    }
+  ],
+  "exit_note": "Completed recording on first launch; the game and encoder exited normally (status 0)."
+}

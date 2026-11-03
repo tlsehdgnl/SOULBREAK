@@ -1,0 +1,54 @@
+{
+  "date": "2026-11-03",
+  "platform": "Mac arm64",
+  "engine": "5.8.4",
+  "passed": true,
+  "editor_play_in_editor": {
+    "map": "L_Cathedral",
+    "widget": "WBP_Combat",
+    "input": "One-tick F1 key injection and OnClicked broadcasts on live UMG buttons",
+    "observed": [
+      "F1 paused gameplay and exposed the Continue, Retry, and Quit buttons.",
+      "The Continue callback resumed gameplay, collapsed the overlay, and captured the cursor.",
+      "With 76 HP before retry, the Retry callback reloaded the map with 100 HP at spawn and the cursor captured."
+    ]
+  },
+  "editor_standalone_metal": {
+    "input": "F1, F1, F1, R pressed and released through Enhanced Input",
+    "resolution": [
+      1280,
+      720
+    ],
+    "observed": [
+      "Lit rendering stayed active through both F1 pause and resume.",
+      "Korean control list and all three buttons were visible together on the paused frame.",
+      "F1 released and recaptured the cursor on successive presses.",
+      "R loaded L_Cathedral a second time; the rendered frame showed both intact characters, encounter approach HUD and full player HP."
+    ]
+  },
+  "coverage": "Offscreen game viewport and runtime widgets. OS-level mouse clicks, Quit activation, packaged Shipping menu interaction and Windows were not exercised by this suite.",
+  "camera": {
+    "runtime": "Native Mac editor -game, Metal, 1280x720, -RenderOffscreen -benchmark (engine treats game as focused), -fps=30",
+    "orientation_queries": {
+      "at_spawn": {
+        "pitch_deg": -9.0,
+        "yaw_deg": 0.0
+      },
+      "before_input_frame_30": {
+        "pitch_deg": -9.0,
+        "yaw_deg": 0.0
+      },
+      "after_mouse_x": {
+        "pitch_deg": -9.0,
+        "yaw_deg": 1.1375
+      },
+      "after_mouse_y": {
+        "pitch_deg": -8.47675,
+        "yaw_deg": 1.1375
+      }
+    },
+    "input": "Enhanced Input forced MouseX=1.0, released, then MouseY=0.5, released. No camera API overrides.",
+    "observed": "Frame 1 showed the cathedral and HUD facing the altar. Characters were not yet drawn in that initial capture. By frame 14 the hero and the knight ahead were both visible before any mouse input. Free-look rotated the corresponding axis on both injections.",
+    "physical_mouse_tested": false
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "engine": "5.8.4",
+  "platform": "Mac arm64",
+  "configuration": "Shipping",
+  "bundle": "Builds/Shipping/Mac/SoulBreak-Mac-Shipping.app",
+  "bundle_identifier": "com.YourCompany.SoulBreak",
+  "signature": "ad hoc, codesign --verify --deep --strict passed",
+  "gameplay_review": "Shipping default level rendered in standalone app using Metal offscreen with -DUMPMOVIE. Automated combat and controller audit ran on Development.",
+  "verified_frame": "Builds/Review/Shipping/first-playable-frame.png",
+  "sha256": {
+    "Contents/MacOS/SoulBreak-Mac-Shipping": "f6b473b1bbab1f5f9c30d30772dc5dd0d6ca900325bb565c41f07e221007f786",
+    "Contents/UE/SoulBreak/Content/Paks/SoulBreak-Mac.pak": "83e990b82be8fb5fbb67c0aba184e973876c4ad7fc2c45fff62889fa9b05e156",
+    "Contents/UE/SoulBreak/Content/Paks/SoulBreak-Mac.ucas": "fb6aee137a6ec5de4f42da62b66a1a622ec2098e1f61120e14fe94c6e9b5f35c",
+    "Contents/UE/SoulBreak/Content/Paks/SoulBreak-Mac.utoc": "6a08dc7a49885540afa3100ebc14a33d08a2f6622923a8ee7b3a36150896a3e3",
+    "Contents/UE/SoulBreak/Content/Paks/global.ucas": "93bdce076360577b0a6ff3ceb801fd3fe1ac070149a0e0ce775a7c15e731a7ea",
+    "Contents/UE/SoulBreak/Content/Paks/global.utoc": "ca1be178e45027e84f23359d48b5903023d60ffc2efc33dfec76f1251c54919f",
+    "Contents/UE/SoulBreak/Content/Splash/Splash.bmp": "3da40bac64131abd76f175539a38d43957e29b534f4e941157902cc8a396d44f"
+  },
+  "normal_appkit_quit_exit_code": 0,
+  "start_view": "Validated before input: hero and knight face each other in the nave, marker and HUD visible.",
+  "distribution_zip": "Builds/Shipping/SoulBreak-macOS-arm64.zip",
+  "distribution_zip_bytes": 365974857,
+  "distribution_zip_sha256": "979ad9f1145f0014adab63ff1646a40f59f4e768da900a4630c72d922bde3cc1",
+  "extracted_zip_codesign": "passed"
+}

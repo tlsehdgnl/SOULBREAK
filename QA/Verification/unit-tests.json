@@ -1,0 +1,33 @@
+{
+  "reportCreatedOn": "2026.11.03-02.54.04",
+  "succeeded": 4,
+  "succeededWithWarnings": 0,
+  "failed": 0,
+  "notRun": 0,
+  "source_sha256": {
+    "Source/SoulBreak/Public/Data/SBCombatData.h": "f490dd92db9926a99f85a34d4304fc08d525604fe1fcc7c49968efce82937684",
+    "Source/SoulBreak/Private/Tests/SBCombatTests.cpp": "0cfdbb10dd08d57b57fc695533c4eb9253270c9daf4d9ffb78652ad3620a7df8"
+  },
+  "tests": [
+    {
+      "fullTestPath": "SoulBreak.Boss.BreakOnce",
+      "state": "Success",
+      "duration": 0.008259166032075882
+    },
+    {
+      "fullTestPath": "SoulBreak.Boss.DeathPriority",
+      "state": "Success",
+      "duration": 0.007998835295438766
+    },
+    {
+      "fullTestPath": "SoulBreak.Combat.Dedup",
+      "state": "Success",
+      "duration": 0.008251708000898361
+    },
+    {
+      "fullTestPath": "SoulBreak.Combat.WindowsAndResources",
+      "state": "Success",
+      "duration": 0.008272498846054077
+    }
+  ]
+}

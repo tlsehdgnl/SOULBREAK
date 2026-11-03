@@ -4,3 +4,11 @@
 /Intermediate/
 /Saved/
 /*.xcworkspace/
+/.vs/
+/*.sln
+/*.suo
+/Builds/
+*.PackageVersionCounter
+
+/Build/*/FileOpenOrder/
+__pycache__/
