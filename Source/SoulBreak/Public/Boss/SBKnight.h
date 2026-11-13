@@ -16,6 +16,11 @@ public:
     ASBKnight();
     UPROPERTY(BlueprintReadOnly) float ArmHealth = 90.f;
     UPROPERTY(BlueprintReadOnly) bool bArmBroken = false;
+    UPROPERTY(BlueprintReadOnly) float ShieldHealth = 75.f;
+    UPROPERTY(BlueprintReadOnly) float KneeHealth = 65.f;
+    UPROPERTY(BlueprintReadOnly) bool bShieldBroken = false;
+    UPROPERTY(BlueprintReadOnly) bool bKneeBroken = false;
+    UPROPERTY(BlueprintReadOnly) ESBArmorPart LastBrokenPart = ESBArmorPart::Body;
     UPROPERTY(BlueprintReadOnly) bool bEncounterActive = false;
     UPROPERTY(BlueprintReadOnly) int32 Phase = 1;
     UPROPERTY(BlueprintReadOnly) ESBKnightAction Action = ESBKnightAction::Idle;
@@ -29,8 +34,14 @@ public:
     UFUNCTION(BlueprintCallable) void StartEncounter(ASBHero* Target);
     UFUNCTION(BlueprintCallable) void StopEncounter();
     UFUNCTION(BlueprintCallable) void ApplySwordHit(int32 AttackId, float Damage, bool bHitArm);
+    UFUNCTION(BlueprintCallable) void ApplyPartHit(int32 AttackId, float Damage, ESBArmorPart Part);
+    UFUNCTION(BlueprintPure) float GetPartHealth(ESBArmorPart Part) const;
+    UFUNCTION(BlueprintPure) float GetPartMaxHealth(ESBArmorPart Part) const;
+    UFUNCTION(BlueprintPure) bool IsPartBroken(ESBArmorPart Part) const;
+    UFUNCTION(BlueprintPure) FVector PartPoint(ESBArmorPart Part) const;
+    UFUNCTION(BlueprintPure) bool IsPunishWindow() const;
     UFUNCTION(BlueprintCallable) void OnParried();
-    void TraceSword(const FVector& From, const FVector& To, bool& bBody, bool& bArm) const;
+    bool TracePart(const FVector& From,const FVector& To,ESBArmorPart Part) const;
     FVector ArmPoint() const;
     ASBHero* GetHero() const { return Hero; }
     void Think(float Dt);
@@ -40,6 +51,8 @@ protected:
 private:
     UPROPERTY(VisibleAnywhere) TObjectPtr<UCapsuleComponent> Body;
     UPROPERTY(VisibleAnywhere) TObjectPtr<UCapsuleComponent> Arm;
+    UPROPERTY(VisibleAnywhere) TObjectPtr<UCapsuleComponent> Shield;
+    UPROPERTY(VisibleAnywhere) TObjectPtr<UCapsuleComponent> Knee;
     UPROPERTY(VisibleAnywhere) TObjectPtr<UInstancedStaticMeshComponent> Telegraph;
     UPROPERTY() TObjectPtr<ASBHero> Hero;
     UPROPERTY() TObjectPtr<UStaticMesh> FallenBlade;
@@ -47,16 +60,27 @@ private:
     int32 LastHitId = -1;
     int32 NextPattern = 0;
     float NextStompTime = 0;
+    double NextWaveTime = 0;
+    double NextChargeTime = 0;
     float NextPathUpdate = 0;
     bool bPreferStomp = false;
     bool bImpactResolved = false;
+    bool bChargeBlocked = false;
+    bool bChargeConnected = false;
+    FVector ChargeForward = FVector::ForwardVector;
+    float ChargeDistance = 0;
+    double PreviousWaveDistance = 0;
     float BlackboardClock = 0.f;
     float StateDuration = 0.f;
     const FSBPattern* CurrentPattern() const;
     void Enter(ESBKnightAction State,float Duration);
     void StartPattern(ESBKnightAction Pattern);
     void SelectOrChase(float Dt);
-    void BreakArm();
-    void UpdateStompRing(float Progress);
+    UCapsuleComponent* PartCollider(ESBArmorPart Part) const;
+    void BreakPart(ESBArmorPart Part);
+    void UpdateRing(float OuterRadius,float InnerRadius);
+    void UpdateChargeLane();
+    void TickCharge(const FSBPattern& Pattern,float Previous);
+    void TickWave(const FSBPattern& Pattern,float Previous);
     void StopMoving();
 };

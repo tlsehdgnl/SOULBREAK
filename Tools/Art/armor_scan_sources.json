@@ -1,0 +1,50 @@
+{
+  "metal_plate_02_color.jpg": {
+    "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/metal_plate_02/metal_plate_02_diff_1k.jpg",
+    "sha256": "6e80877d0e9d5973d96298c6091df7ace906b0a6760afc4f3592e4855f3f1d4c"
+  },
+  "metal_plate_02_normal.jpg": {
+    "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/metal_plate_02/metal_plate_02_nor_dx_1k.jpg",
+    "sha256": "51e1f102bd522ca51cab51effe247c3252848a1ae7e4b105c0463f246b73fea9"
+  },
+  "metal_plate_02_rough.jpg": {
+    "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/metal_plate_02/metal_plate_02_rough_1k.jpg",
+    "sha256": "73a6bd6393f6de7be42058584c2d382f2a3e9148ceabc2d02e748e2c860e74d1"
+  },
+  "poly_wool_herringbone_color.jpg": {
+    "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/poly_wool_herringbone/poly_wool_herringbone_diff_1k.jpg",
+    "sha256": "fd889a46f617efd331e522e36b8ad2548e16e1cb018c001872f17537d7666af5"
+  },
+  "poly_wool_herringbone_normal.jpg": {
+    "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/poly_wool_herringbone/poly_wool_herringbone_nor_dx_1k.jpg",
+    "sha256": "f5994b943cade87d42023154bbe12738086d32c33f4a78541b82e9698a9bcb5b"
+  },
+  "poly_wool_herringbone_rough.jpg": {
+    "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/poly_wool_herringbone/poly_wool_herringbone_rough_1k.jpg",
+    "sha256": "028b4fb92c322a31b5374171f62f43af2cfd6a012748be175fd44dbf1109903c"
+  },
+  "rough_linen_color.jpg": {
+    "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/rough_linen/rough_linen_diff_1k.jpg",
+    "sha256": "04897d7611d7390ddf5b2c6f7273f448dfc48341fdbd1f4f207fa30b331d7f57"
+  },
+  "rough_linen_normal.jpg": {
+    "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/rough_linen/rough_linen_nor_dx_1k.jpg",
+    "sha256": "e76e1d7bd6568a5fbc4cb4ef9908d4233af5493c533a8342283db46f210110f0"
+  },
+  "rough_linen_rough.jpg": {
+    "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/rough_linen/rough_linen_rough_1k.jpg",
+    "sha256": "734ad6718841a6e296aacaa6e9ee2e1686eed5f62bb8d71c915c5605e162bcb4"
+  },
+  "brown_leather_color.jpg": {
+    "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/brown_leather/brown_leather_albedo_1k.jpg",
+    "sha256": "7e9e1d6566d1fd91d4ceb4966c4820361e85d53a7a828b6bab3b2a093a876cd1"
+  },
+  "brown_leather_normal.jpg": {
+    "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/brown_leather/brown_leather_nor_dx_1k.jpg",
+    "sha256": "4262b981d5485419908bca32bf9e4e7063e3f7f0f4206f80cd2a6ebaf79fc845"
+  },
+  "brown_leather_rough.jpg": {
+    "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/brown_leather/brown_leather_rough_1k.jpg",
+    "sha256": "f9739ef2da2e3d17b9ec253f5042f61b10dc10f3ae28f6cf6491650d3d1b0ca3"
+  }
+}

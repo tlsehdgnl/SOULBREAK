@@ -39,14 +39,23 @@ ASBImpact::ASBImpact()
 void ASBImpact::Launch(UStaticMesh* Blade, const FVector& Velocity, float FloorZ, float Scale, FLinearColor Tint, float Size)
 {
     Ground = FloorZ - GetActorLocation().Z + 4.f;
-    LaunchSpeed = Velocity;
+    LaunchSpeed = GetActorQuat().UnrotateVector(Velocity);
     ShardSize = Size;
     bFallenBlade = Blade != nullptr;
     if (Blade)
     {
         Sword->SetStaticMesh(Blade);
         Sword->SetWorldScale3D(FVector(Scale));
-        LandTime = (Velocity.Z+FMath::Sqrt(FMath::Max(0.,Velocity.Z*Velocity.Z-1960.*Ground)))/980.;
+        // A dropped shield settles on its face, while a blade settles on its broad side.
+        // Their authored pivots differ, so take the floor offset from the rotated mesh.
+        const FBox Box=Blade->GetBoundingBox();
+        const FVector Extent=Box.GetExtent();
+        const FVector ThinAxis=(Extent.Z<=Extent.X && Extent.Z<=Extent.Y) ? FVector::UpVector :
+            (Extent.Y<=Extent.X ? FVector::RightVector : FVector::ForwardVector);
+        RestRotation=FQuat(FVector::UpVector,.68f)*FQuat::FindBetweenNormals(ThinAxis,FVector::UpVector);
+        const FTransform Rest(RestRotation,FVector::ZeroVector,FVector(Scale));
+        RestHeight=FloorZ-GetActorLocation().Z-Box.TransformBy(Rest).Min.Z+.4f;
+        LandTime=(Velocity.Z+FMath::Sqrt(FMath::Max(0.,Velocity.Z*Velocity.Z-1960.*RestHeight)))/980.;
     }
     else
     {
@@ -114,11 +123,18 @@ void ASBImpact::Tick(float Dt)
     if (bFallenBlade)
     {
         float Flight=FMath::Min(Age,LandTime);
-        const FVector P=LaunchSpeed*Flight+FVector(0,0,-490.f*Flight*Flight);
+        FVector P=LaunchSpeed*Flight+FVector(0,0,-490.f*Flight*Flight);
+        const float Settle=FMath::Max(0.f,Age-LandTime);
+        FQuat Rotation=FRotator(Flight*190.f,Flight*230.f,Flight*130.f).Quaternion();
+        Rotation=FQuat::Slerp(Rotation,RestRotation,FMath::SmoothStep(.56f,1.f,Flight/FMath::Max(.001f,LandTime)));
+        if (Age>=LandTime)
+        {
+            const float Bounce=FMath::Exp(-13.f*Settle)*FMath::Abs(FMath::Sin(Settle*22.f));
+            Rotation=FQuat(FVector::ForwardVector,Bounce*.16f)*RestRotation;
+            P.Z=RestHeight+Bounce*5.f;
+        }
         Sword->SetRelativeLocation(P);
-        float Roll=Age*340.f;
-        if (Age>=LandTime) Roll=FMath::Exp(-16.f*(Age-LandTime))*FMath::Sin((Age-LandTime)*30.f)*12.f;
-        Sword->SetRelativeRotation(FRotator(0,FMath::Min(Flight*210.f,90.f),Roll));
+        Sword->SetRelativeRotation(Rotation);
         if (Age>=FMath::Max(1.f,LandTime+.35f))
         {
             Fragments->ClearInstances();

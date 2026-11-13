@@ -29,10 +29,10 @@ def encode_capture(output, encoder):
     subprocess.run(command, check=True)
     with (output / 'events.csv').open(encoding='utf8') as stream:
         events = list(csv.DictReader(stream))
-    for name in ('engaged', 'parry', 'armbreak', 'stomp', 'victory', 'defeat'):
+    for name in ('engaged', 'parry', 'armbreak', 'shieldbreak', 'kneebreak', 'charge', 'bellwave', 'shoulder', 'stomp', 'victory', 'defeat'):
         mark = next((entry for entry in events if entry['event'] == name), None)
         if mark:
-            offset = {'parry': 2, 'armbreak': 4, 'victory': 18, 'defeat': 18}.get(name, 0)
+            offset = {'parry': 2, 'armbreak': 4, 'shieldbreak': 4, 'kneebreak': 4, 'bellwave': 23, 'victory': 18, 'defeat': 18}.get(name, 0)
             shutil.copyfile(frames[min(int(mark['frame'])+offset,len(frames)-1)], output/f'{name}.png')
 
 

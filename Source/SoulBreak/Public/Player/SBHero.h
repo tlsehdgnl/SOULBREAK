@@ -19,6 +19,8 @@ public:
     ASBHero();
     UPROPERTY(BlueprintReadOnly) float Stamina = 100.f;
     UPROPERTY(BlueprintReadOnly) bool bLockedOn = false;
+    UPROPERTY(BlueprintReadOnly) ESBArmorPart SelectedPart = ESBArmorPart::SwordArm;
+    UFUNCTION(BlueprintCallable) void CycleTargetPart();
     UPROPERTY(BlueprintReadOnly) ESBHeroAction Action = ESBHeroAction::Ready;
     UPROPERTY(BlueprintReadOnly) float ActionElapsed = 0.f;
     UPROPERTY(BlueprintReadOnly) float ParryPulse = 0.f;
@@ -62,8 +64,9 @@ private:
     FVector DodgeDirection = FVector::ForwardVector;
     float SpentAt = -10.f;
     float Shake = 0.f;
+    FVector2D LockViewOffset = FVector2D::ZeroVector;
+    bool bHadMouseCapture = false;
     double CaptureGuardUntil = 0;
-    bool bFirstLookAfterCapture = true;
     ESBHeroAction BufferedAction = ESBHeroAction::Ready;
     FVector BufferedDirection = FVector::ForwardVector;
     float ActionDuration = 0.f;

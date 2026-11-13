@@ -7,7 +7,15 @@
 void ASBPlayerController::BeginPlay()
 {
     Super::BeginPlay();
-    SetInputMode(FInputModeGameOnly());
+    CaptureGameplayMouse();
+}
+void ASBPlayerController::CaptureGameplayMouse()
+{
+    if (!IsLocalController()) return;
+    bShowMouseCursor = false;
+    FInputModeGameOnly Mode;
+    Mode.SetConsumeCaptureMouseDown(false);
+    SetInputMode(Mode);
 }
 void ASBPlayerController::SetupInputComponent()
 {
@@ -56,6 +64,5 @@ void ASBPlayerController::ShowOverlay(bool bVisible,bool bPaused)
         return;
     }
     if (Overlay) Overlay->SetVisibility(ESlateVisibility::Collapsed);
-    bShowMouseCursor=false;
-    SetInputMode(FInputModeGameOnly());
+    CaptureGameplayMouse();
 }

@@ -1,0 +1,317 @@
+{
+  "date": "2026-11-12",
+  "platform": "macOS arm64",
+  "engine": "5.8.4",
+  "native_appkit_before_after": {
+    "date": "2026-11-12",
+    "runtime": "Original and final packaged Mac Development executables. 640x360 offscreen, window normally captured at high precision, -benchmark supplies active-game focus for these isolated offscreen positive checks. Camera reads run on the actual UE game thread; the input harness never assigns camera state.",
+    "input": "Six buttonless native NSEvent objects created from mouse-moved CGEvents and posted via [NSApp postEvent:atStart:] into each isolated Mac process, after one neutral event at capture. UE reads native deltaX/deltaY in its normal local NSEvent monitor. A process-only test library silenced other apps’ desktop mouse movements and prevented system cursor warp and reassociation. No system-wide injection or physical hardware use.",
+    "measurement": "UE LogPlayerInput logs before Enhanced Input and game-thread APlayerController::GetPlayerViewPoint after camera updates. Per-event direction and size checked against the first-party axis sensitivity and yaw/pitch scale. No mutations of the shipped binary. Temporary inspection library loaded into isolated test processes.",
+    "runs": [
+      {
+        "sha256": "a2dee97871ee897b120fcb4ccfc9d7e9037dcbaff271ad47e76451c597d33450",
+        "native_capture": true,
+        "MacUseNewMouseControllerMovement": 1,
+        "received_pairs": 0,
+        "requested_AppKit_deltas": [
+          [
+            17,
+            -7
+          ],
+          [
+            -13,
+            5
+          ],
+          [
+            23,
+            -11
+          ],
+          [
+            -19,
+            9
+          ],
+          [
+            31,
+            -15
+          ],
+          [
+            -29,
+            13
+          ]
+        ],
+        "observed_EnhancedPlayerInput_xy": [],
+        "player_camera_pitch_yaw_after_each_input": [
+          [
+            -9.0,
+            0.0
+          ],
+          [
+            -9.0,
+            0.0
+          ],
+          [
+            -9.0,
+            0.0
+          ],
+          [
+            -9.0,
+            0.0
+          ],
+          [
+            -9.0,
+            0.0
+          ],
+          [
+            -9.0,
+            0.0
+          ],
+          [
+            -9.0,
+            0.0
+          ]
+        ],
+        "build": "Previous 0.3.0 package as delivered before camera fix",
+        "muted_host_pointer": true
+      },
+      {
+        "sha256": "691df2cb8e769d49ed77a2233e52e66b7ee4858fe0c334ebbe0a38c695045a75",
+        "native_capture": true,
+        "MacUseNewMouseControllerMovement": 0,
+        "received_pairs": 6,
+        "requested_AppKit_deltas": [
+          [
+            17,
+            -7
+          ],
+          [
+            -13,
+            5
+          ],
+          [
+            23,
+            -11
+          ],
+          [
+            -19,
+            9
+          ],
+          [
+            31,
+            -15
+          ],
+          [
+            -29,
+            13
+          ]
+        ],
+        "observed_EnhancedPlayerInput_xy": [
+          [
+            "X",
+            17.0
+          ],
+          [
+            "Y",
+            7.0
+          ],
+          [
+            "X",
+            -13.0
+          ],
+          [
+            "Y",
+            -5.0
+          ],
+          [
+            "X",
+            23.0
+          ],
+          [
+            "Y",
+            11.0
+          ],
+          [
+            "X",
+            -19.0
+          ],
+          [
+            "Y",
+            -9.0
+          ],
+          [
+            "X",
+            31.0
+          ],
+          [
+            "Y",
+            15.0
+          ],
+          [
+            "X",
+            -29.0
+          ],
+          [
+            "Y",
+            -13.0
+          ]
+        ],
+        "player_camera_pitch_yaw_after_each_input": [
+          [
+            -9.0,
+            0.0
+          ],
+          [
+            -8.4365,
+            1.4875
+          ],
+          [
+            -8.839,
+            0.35
+          ],
+          [
+            -7.9535,
+            2.3625
+          ],
+          [
+            -8.678,
+            0.7
+          ],
+          [
+            -7.4705,
+            3.4125
+          ],
+          [
+            -8.517,
+            0.875
+          ]
+        ],
+        "build": "Rebuilt 0.3.0 package with mouse fix",
+        "muted_host_pointer": true
+      }
+    ],
+    "unfocused_control": {
+      "configuration": "Same final executable and injected NSEvents without -benchmark, process NSApp inactive.",
+      "native_axis_pairs": 6,
+      "before_pitch_yaw": [
+        -9,
+        0
+      ],
+      "after_pitch_yaw": [
+        -9,
+        0
+      ],
+      "camera_stayed_still_after_all_six": true
+    }
+  },
+  "viewport_method": "Each positive path received synthetic buttonless pointer events in captured Slate SViewport while -benchmark supplied foreground focus. The separate negative paths ran without -benchmark in actually inactive offscreen apps. A process-local test shim suppressed unrelated desktop motion. Rotation comes from PlayerCameraManager in both cases. PIE started and ended through the editor level subsystem.",
+  "physical_mouse_and_trackpad": "unverified",
+  "windows_hardware": "unverified",
+  "editor_standalone": {
+    "artifact_sha256": "2fb077172279c5d2201b268cb7043597b0f20af54206e63fb89da595b71a8795",
+    "focused": {
+      "exit_code": 0,
+      "focus_simulated": true,
+      "checks": [
+        {
+          "check": "free look from viewport pointer: yaw 4.20, pitch 2.58 degrees",
+          "passed": true
+        },
+        {
+          "check": "help releases cursor; resumed viewport look: yaw -4.20, pitch -2.58 degrees",
+          "passed": true
+        },
+        {
+          "check": "locked viewport pointer kept target and adjusted framing: yaw 28.00, pitch 16.00 degrees",
+          "passed": true
+        }
+      ]
+    },
+    "background": {
+      "exit_code": 0,
+      "focus_simulated": false,
+      "checks": [
+        {
+          "check": "unfocused app ignored captured viewport pointer motion on both axes",
+          "passed": true
+        }
+      ]
+    }
+  },
+  "editor_embedded_play": {
+    "artifact_sha256": "2fb077172279c5d2201b268cb7043597b0f20af54206e63fb89da595b71a8795",
+    "focused": {
+      "exit_code": 0,
+      "focus_simulated": true,
+      "checks": [
+        {
+          "check": "free look from viewport pointer: yaw 4.20, pitch 2.58 degrees",
+          "passed": true
+        },
+        {
+          "check": "help releases cursor; resumed viewport look: yaw -4.20, pitch -2.58 degrees",
+          "passed": true
+        },
+        {
+          "check": "locked viewport pointer kept target and adjusted framing: yaw 28.00, pitch 16.00 degrees",
+          "passed": true
+        }
+      ]
+    },
+    "background": {
+      "exit_code": 0,
+      "focus_simulated": false,
+      "checks": [
+        {
+          "check": "unfocused app ignored captured viewport pointer motion on both axes",
+          "passed": true
+        }
+      ]
+    }
+  },
+  "packaged_development": {
+    "artifact_sha256": "691df2cb8e769d49ed77a2233e52e66b7ee4858fe0c334ebbe0a38c695045a75",
+    "focused": {
+      "exit_code": 0,
+      "focus_simulated": true,
+      "checks": [
+        {
+          "check": "free look from viewport pointer: yaw 4.20, pitch 2.58 degrees",
+          "passed": true
+        },
+        {
+          "check": "help releases cursor; resumed viewport look: yaw -4.20, pitch -2.58 degrees",
+          "passed": true
+        },
+        {
+          "check": "locked viewport pointer kept target and adjusted framing: yaw 28.00, pitch 16.00 degrees",
+          "passed": true
+        }
+      ]
+    },
+    "background": {
+      "exit_code": 0,
+      "focus_simulated": false,
+      "checks": [
+        {
+          "check": "unfocused app ignored captured viewport pointer motion on both axes",
+          "passed": true
+        }
+      ]
+    }
+  },
+  "packaged_combat_regression": {
+    "30hz": {
+      "passed_checks": 43,
+      "victory_retries": 10,
+      "defeat_retries": 10
+    },
+    "60hz": {
+      "passed_checks": 43,
+      "victory_retries": 10,
+      "defeat_retries": 10
+    }
+  },
+  "native_unit_tests": {
+    "passed": 5,
+    "failed": 0
+  }
+}

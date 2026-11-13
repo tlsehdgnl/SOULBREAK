@@ -1,33 +1,38 @@
 {
-  "reportCreatedOn": "2026.11.03-05.06.33",
-  "succeeded": 4,
+  "reportCreatedOn": "2026.11.12-01.47.10",
+  "succeeded": 5,
   "succeededWithWarnings": 0,
   "failed": 0,
   "notRun": 0,
-  "source_sha256": {
-    "Source/SoulBreak/Public/Data/SBCombatData.h": "f490dd92db9926a99f85a34d4304fc08d525604fe1fcc7c49968efce82937684",
-    "Source/SoulBreak/Private/Tests/SBCombatTests.cpp": "0cfdbb10dd08d57b57fc695533c4eb9253270c9daf4d9ffb78652ad3620a7df8"
-  },
   "tests": [
     {
       "fullTestPath": "SoulBreak.Boss.BreakOnce",
       "state": "Success",
-      "duration": 0.017180126160383224
+      "duration": 0.016415666788816452
     },
     {
       "fullTestPath": "SoulBreak.Boss.DeathPriority",
       "state": "Success",
-      "duration": 0.016727373003959656
+      "duration": 0.016656998544931412
+    },
+    {
+      "fullTestPath": "SoulBreak.Boss.IndependentArmorAndCounter",
+      "state": "Success",
+      "duration": 0.01665641739964485
     },
     {
       "fullTestPath": "SoulBreak.Combat.Dedup",
       "state": "Success",
-      "duration": 0.016179542988538742
+      "duration": 0.016743332147598267
     },
     {
       "fullTestPath": "SoulBreak.Combat.WindowsAndResources",
       "state": "Success",
-      "duration": 0.016290582716464996
+      "duration": 0.016530167311429977
     }
-  ]
+  ],
+  "source_sha256": {
+    "Source/SoulBreak/Public/Data/SBCombatData.h": "aead88ab2f3e6219f459d96255c5704fc1b5d2d804f1d41ca4869f947aeba59e",
+    "Source/SoulBreak/Private/Tests/SBCombatTests.cpp": "c1a2b76328ffa0c2a33fc1cbe3a9258c954f0733c6b535f98d29f96290708c64"
+  }
 }

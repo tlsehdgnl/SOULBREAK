@@ -25,10 +25,11 @@ class Performance:
         direction=Vector(direction)
         if original.length<.001 or direction.length<.001:
             return
-        rotation=original.rotation_difference(direction)
+        rotation=original.normalized().rotation_difference(direction.normalized())
         center=bone.head.copy()
         bone.matrix=(Matrix.Translation(center)@rotation.to_matrix().to_4x4()@
                      Matrix.Translation(-center)@bone.matrix)
+        bone.scale=(1,1,1)
         bpy.context.view_layer.update()
 
     def two_bone(self, upper, lower, end, target, pole):
@@ -54,6 +55,7 @@ class Performance:
         spec={**GUARD,**settings}
         for b in self.pose:
             b.rotation_mode='QUATERNION'
+            b.scale=(1,1,1)
             basis=self.arm.bones[b.name].matrix_local.to_quaternion()
             angles=spec.get(b.name,(0,0,0))
             rot=Euler(tuple(radians(v) for v in angles)).to_quaternion()
@@ -71,6 +73,22 @@ class Performance:
             grip,line=swing
             self.two_bone('UpperArmR','ForearmR','HandR',grip,(-82,8,120))
             self.point_bone(self.pose['HandR'],self.pose['BladeTip'].head-self.pose['BladeBase'].head,line)
+        # Keep a strapped heater braced toward the opponent while the elbow flexes.
+        # The plate joint is also the independent gameplay detach point.
+        shield=self.pose['ShieldPlate']
+        shield_angles=settings.get('shield',(4,-8,-15))
+        if shield_angles is not None:
+            facing=Euler(tuple(radians(x) for x in shield_angles)).to_matrix().to_4x4()
+            rest=self.arm.bones['ShieldPlate'].matrix_local.to_quaternion().to_matrix().to_4x4()
+            shield.matrix=Matrix.Translation(shield.head)@facing@rest
+            shield.scale=(1,1,1)
+            bpy.context.view_layer.update()
+        # A rigid blade must retain its bind-pose length in every authored beat.
+        # Nonunit scale left by an IK matrix decomposition used to compound over clips.
+        tip=self.pose['BladeTip'].head-self.pose['BladeBase'].head
+        bind=self.arm.bones['BladeTip'].head_local-self.arm.bones['BladeBase'].head_local
+        if abs(tip.length-bind.length)>.1:
+            raise ValueError(f'Sword deformed at frame {frame}: {tip.length:.3f} cm')
         for b in self.pose:
             q=b.rotation_quaternion.copy()
             if b.name in self.previous:
@@ -89,9 +107,27 @@ class Performance:
         frames=round(duration*60)
         self.scene.frame_start=1
         self.scene.frame_end=1+frames
-        for fraction, pose in beats:
-            self.key(1+round(fraction*frames),pose)
-        for curve in action.fcurves:
+        for i,(fraction,pose) in enumerate(beats):
+            previous=beats[max(0,i-1)][1]
+            chest=pose.get('Chest',GUARD['Chest'])
+            prev=previous.get('Chest',GUARD['Chest'])
+            gait=name in ('Idle','KnightIdle','Walk','Run','KnightWalk','StrafeR','StrafeL','Backstep')
+            wave=sin(2*pi*fraction)
+            # Inertia concentrates at the bias-cut hem. The top follows the shoulder
+            # and settles first; the lower two joints carry the delayed twist.
+            fullness=(4.0 if gait else 2.5)+max(0,pose.get('hip',(0,0,0))[1]*-.4)
+            lag_yaw=(prev[2]-chest[2])*.22
+            drift=wave*(2 if 'Idle' in name else 4) if gait else lag_yaw
+            authored={'CloakTop':(fullness*.35,drift*.19,-chest[2]*.12),
+                      'CloakMid':(fullness*.55,drift*.36,-chest[2]*.2+lag_yaw*.46),
+                      'CloakHem':(fullness*.73,drift*.58,-chest[2]*.2+lag_yaw*.58),**pose}
+            self.key(1+round(fraction*frames),authored)
+        if hasattr(action,'fcurves'):
+            curves=action.fcurves
+        else:
+            slot=self.rig.animation_data.action_slot
+            curves=action.layers[0].strips[0].channelbag(slot).fcurves
+        for curve in curves:
             for key in curve.keyframe_points:
                 key.handle_left_type='AUTO_CLAMPED'
                 key.handle_right_type='AUTO_CLAMPED'
@@ -201,3 +237,65 @@ class Performance:
         knee={**wound,'hip':(4,1,-31),'Chest':(25,18,20),'Head':(21,-12,20),'UpperArmL':(-43,-19,32)}
         rally={**braced,'hip':(2,2,-11),'Chest':(-4,8,-7),'Head':(7,-9,1),'UpperArmL':(-41,9,11)}
         self.clip('Sunder',1.0,[(0,braced),(.11,wound),(.29,knee),(.51,knee),(.72,rally),(1,braced)])
+
+
+        # The heel set and overstepping weight transfer are heavier than the pilgrim's.
+        def guard_step(t):
+            step=self.stride(t,(0,-22))
+            step['hip']=(2.9*cos(2*pi*t),-1.2,-6.8-3.2*cos(2*pi*(t-.1))**2)
+            step.update(UpperArmL=(-40+6*cos(2*pi*t),10,7),ForearmL=(-53,0,12),
+                        Chest=(4,3*cos(2*pi*t),-13+4.3*cos(2*pi*t)),
+                        sword=((-38,-18,105+2*sin(2*pi*t)),(-.44,-.79,.28)))
+            return step
+        self.clip('KnightWalk',.98,[(i/12,guard_step(i/12)) for i in range(13)])
+        crouch={**brace,'hip':(-4,7,-18),'Pelvis':(4,-5,10),'Chest':(17,-9,-24),
+                'Head':(-13,9,16),'UpperArmL':(-62,5,14),'ForearmL':(-55,-4,9),
+                'shield':(-13,3,6),'sword':((-44,2,96),(-.66,.72,.17))}
+        push={**crouch,'hip':(2,-10,-13),'Pelvis':(5,4,13),'Chest':(20,-4,-28),
+              'UpperArmL':(-65,-6,14),'ForearmL':(-28,0,7),
+              'feet':{'L':((16,-24,10),4),'R':((-15,23,15),-23)},'shield':(-7,4,5)}
+        drive={**push,'hip':(-3,-8,-14),'feet':{'R':((-16,-18,10),1),'L':((15,16,18),-18)}}
+        arrest={**push,'hip':(2,-6,-22),'Chest':(26,8,-8),'Head':(-14,-4,8),
+                'shield':(-18,-8,-12),'feet':{'R':((-17,21,10),-7),'L':((15,-24,10),2)}}
+        self.clip('ShieldCharge',2.39,[(0,braced),(.14,crouch),(.308,crouch),(.365,push),
+                  (.42,drive),(.485,push),(.519,arrest),(.62,arrest),(.79,brace),(1,braced)])
+        curl=dict(hip=(-3,2,-17),Pelvis=(7,-7,-8),Chest=(31,9,-13),Head=(17,5,7),
+                  UpperArmR=(-30,-13,18),ForearmR=(-71,8,-13),UpperArmL=(-32,8,-17),ForearmL=(-75,3,15),
+                  sword=None,feet=stance)
+        roar={**curl,'hip':(1,-3,-5),'Pelvis':(-6,2,8),'Chest':(-26,-2,14),'Head':(-21,-3,-8),
+              'UpperArmL':(-8,54,-12),'ForearmL':(-28,0,1),'UpperArmR':(-7,-54,8),'ForearmR':(-31,1,-5)}
+        exhale={**roar,'hip':(1,-5,-11),'Chest':(-9,0,8),'Head':(-8,0,-4)}
+        self.clip('BellWave',2.32,[(0,braced),(.21,curl),(.36,{**curl,'Chest':(35,8,-15)}),
+                  (.41,curl),(.47,roar),(.59,roar),(.72,exhale),(.85,brace),(1,braced)])
+        coil={**braced,'hip':(-6,4,-15),'Chest':(8,-11,29),'Pelvis':(2,3,14),
+              'UpperArmL':(-21,7,19),'ForearmL':(-69,0,12),'feet':stance}
+        check={**coil,'hip':(6,-9,-13),'Chest':(18,13,-35),'Pelvis':(5,8,-17),'Head':(-6,-6,21),
+               'UpperArmL':(-39,3,-6),'ForearmL':(-66,0,10),'shield':(12,-5,20)}
+        self.clip('ShoulderCheck',1.06,[(0,braced),(.24,coil),(.35,coil),(.415,check),
+                  (.475,check),(.60,{**check,'hip':(4,-6,-16)}),(.79,brace),(1,braced)])
+
+        # Low target: lower the hips onto the flexed lead knee and direct the blade
+        # below the grip. At full extension the tip reaches just above the target's shin.
+        def low(pose,grip,line,angle,dip):
+            x,y,z=pose.get('hip',(0,0,0))
+            cx,cy,cz=pose.get('Chest',GUARD['Chest'])
+            return {**pose,'hip':(x,y,z-dip),'Chest':(cx+angle,cy,cz),
+                    'Head':(10,-1,-cz*.45),'feet':{'L':((16,-15,10),0),'R':((-15,14,10),-4)},
+                    'sword':(grip,line)}
+        ready=low(wind,(-45,-1,119),(-.83,.38,.41),12,6)
+        sweep1=low(strike,(-40,-35,99),(-.51,-.63,-.58),15,13)
+        sweep2=low(cross,(-9,-41,87),(.51,-.64,-.56),16,15)
+        finish=low(follow,(1,-28,89),(.83,.14,-.54),9,7)
+        self.clip('LowCut',.60,[(0,{}),(.18,ready),(.28,ready),(.39,sweep1),(.52,sweep2),
+                  (.66,finish),(.80,finish),(1,{})])
+        backward=low(reverse_wind,(1,-19,103),(.83,.32,-.27),12,7)
+        backhit=low(reverse_hit,(-23,-38,91),(.24,-.76,-.59),20,15)
+        out=low(reverse_end,(-46,-14,106),(-.83,.06,-.54),12,8)
+        self.clip('LowReturnCut',.75,[(0,finish),(.18,backward),(.28,backward),
+                  (.41,backhit),(.53,out),(.69,out),(1,{})])
+        plunging=low(draw,(-39,3,114),(-.70,.66,.31),11,4)
+        arc=low(strike,(-33,-35,91),(-.27,-.80,-.54),17,15)
+        hook=low(follow,(-1,-36,87),(.66,-.48,-.58),21,16)
+        recover=low(rise,(1,-29,131),(.80,.10,.58),10,6)
+        self.clip('LowOathCut',.85,[(0,{}),(.21,plunging),(.32,plunging),(.44,arc),
+                  (.56,hook),(.70,recover),(.83,recover),(1,{})])

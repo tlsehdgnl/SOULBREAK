@@ -9,8 +9,10 @@ class USoundBase;
 UENUM(BlueprintType)
 enum class ESBHeroAction : uint8 { Ready, Cut, ReturnCut, OathCut, Evade, Parry, Hurt, Dead };
 UENUM(BlueprintType)
-enum class ESBKnightAction : uint8 { Idle, Chase, SwordSweep, Bash, Stomp, Stagger, Transition, Dead };
-UENUM() enum class ESBHitResult : uint8 { Miss, Body, Arm, Broken, Phase, Death };
+enum class ESBKnightAction : uint8 { Idle, Chase, SwordSweep, Bash, Stomp, Stagger, Transition, Dead, ShieldCharge, BellWave, ShoulderCheck };
+UENUM(BlueprintType)
+enum class ESBArmorPart : uint8 { Body, SwordArm, Shield, Knee };
+UENUM() enum class ESBHitResult : uint8 { Miss, Body, Arm, Broken, Phase, Death, Plate };
 
 USTRUCT(BlueprintType)
 struct FSBAttackTiming
@@ -55,6 +57,11 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadOnly) FSBPattern Sweep;
     UPROPERTY(EditAnywhere, BlueprintReadOnly) FSBPattern Bash = FSBPattern(180,80,.45f,.12f,.7f,16);
     UPROPERTY(EditAnywhere, BlueprintReadOnly) FSBPattern Stomp = FSBPattern(320,360,.9f,.15f,1.f,30);
+    UPROPERTY(EditAnywhere, BlueprintReadOnly) FSBPattern ShieldCharge = FSBPattern(670,0,.76f,.48f,1.15f,28);
+    UPROPERTY(EditAnywhere, BlueprintReadOnly) FSBPattern BellWave = FSBPattern(535,360,.95f,.72f,.65f,24);
+    UPROPERTY(EditAnywhere, BlueprintReadOnly) FSBPattern ShoulderCheck = FSBPattern(155,95,.38f,.12f,.56f,14);
+    UPROPERTY(EditAnywhere, BlueprintReadOnly) float ShieldDurability = 75;
+    UPROPERTY(EditAnywhere, BlueprintReadOnly) float KneeDurability = 65;
     UPROPERTY(EditAnywhere, BlueprintReadOnly) float RegenDelay = .7f;
     UPROPERTY(EditAnywhere, BlueprintReadOnly) float RegenRate = 22;
     UPROPERTY(EditAnywhere, BlueprintReadOnly) float SprintCost = 12;
@@ -71,16 +78,25 @@ namespace SBCombat
         return true;
     }
     // A hit ID belongs to a single attack on this target. Resolve death before any phase/part event.
-    inline ESBHitResult Resolve(int32 Id, int32& LastId, float Damage, bool bArm, float& Health, float& ArmHealth, bool& bBroken, int32& Phase)
+    inline ESBHitResult ResolvePart(int32 Id, int32& LastId, float Damage, ESBArmorPart Part, float& Health, float& Durability, bool& bBroken, int32& Phase, float PartScale = 1.f)
     {
         if (Health <= 0 || Id <= LastId || Damage <= 0) return ESBHitResult::Miss;
         LastId = Id;
         Health = FMath::Max(0.f, Health - Damage);
-        const bool bValidArm = bArm && !bBroken;
-        if (bValidArm) ArmHealth = FMath::Max(0.f, ArmHealth - Damage);
+        const bool bValidPart = Part != ESBArmorPart::Body && !bBroken;
+        if (bValidPart) Durability = FMath::Max(0.f, Durability - Damage * PartScale);
         if (Health <= 0) return ESBHitResult::Death;
-        if (bValidArm && ArmHealth <= 0) { bBroken = true; Phase = 2; return ESBHitResult::Broken; }
-        if (Phase == 1 && Health <= 200) { Phase = 2; return ESBHitResult::Phase; }
-        return bValidArm ? ESBHitResult::Arm : ESBHitResult::Body;
+        const bool bBreak = bValidPart && Durability <= 0;
+        if (bBreak) bBroken = true;
+        const bool bEnterPhase = Phase == 1 && (Health <= 200 || (bBreak && Part == ESBArmorPart::SwordArm));
+        if (bEnterPhase) Phase = 2;
+        if (bBreak) return ESBHitResult::Broken;
+        if (bEnterPhase) return ESBHitResult::Phase;
+        if (!bValidPart) return ESBHitResult::Body;
+        return Part==ESBArmorPart::SwordArm ? ESBHitResult::Arm : ESBHitResult::Plate;
+    }
+    inline ESBHitResult Resolve(int32 Id, int32& LastId, float Damage, bool bArm, float& Health, float& ArmHealth, bool& bBroken, int32& Phase)
+    {
+        return ResolvePart(Id,LastId,Damage,bArm ? ESBArmorPart::SwordArm : ESBArmorPart::Body,Health,ArmHealth,bBroken,Phase);
     }
 }

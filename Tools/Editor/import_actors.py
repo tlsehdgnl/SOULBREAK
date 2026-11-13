@@ -23,6 +23,21 @@ def setprop(obj, key, value):
 
 def palette_materials():
     palette = json.loads((source / 'palette.json').read_text())
+    # Reimporting a mesh must not replace the finished measured PBR instances
+    # with the simpler base used when bootstrapping the asset library.
+    if asset.does_asset_exist(materials+'/M_ForgedSurfaces'):
+        ready = {name: asset.load_asset(materials+'/MI_'+name) for name in palette
+                 if asset.does_asset_exist(materials+'/MI_'+name)}
+        if len(ready) == len(palette):
+            for name, mi in ready.items():
+                r,g,b,metal,roughness,emission=palette[name]
+                u.MaterialEditingLibrary.set_material_instance_vector_parameter_value(mi,'Pigment',u.LinearColor(r,g,b,1))
+                u.MaterialEditingLibrary.set_material_instance_scalar_parameter_value(mi,'Metal',metal)
+                if mi.get_editor_property('parent').get_name()=='M_Heraldry':
+                    u.MaterialEditingLibrary.set_material_instance_scalar_parameter_value(mi,'Roughness',roughness)
+                    u.MaterialEditingLibrary.set_material_instance_vector_parameter_value(mi,'Glow',u.LinearColor(r*emission,g*emission,b*emission,1))
+                asset.save_loaded_asset(mi)
+            return ready
     mat = create('M_Heraldry', materials, u.Material, u.MaterialFactoryNew())
     u.MaterialEditingLibrary.delete_all_material_expressions(mat)
     setprop(mat, 'two_sided', True)
@@ -36,6 +51,22 @@ def palette_materials():
     task.replace_existing=True
     task.save=True
     tools.import_asset_tasks([task])
+    normals={}
+    for swatch in ('Burnished','Twill','Hide','Mail'):
+        key='T_'+swatch+'_N'
+        entry=u.AssetImportTask()
+        entry.filename=str(source/(key+'.tga'))
+        entry.destination_path=materials
+        entry.automated=True
+        entry.replace_existing=True
+        entry.save=True
+        tools.import_asset_tasks([entry])
+        tex=asset.load_asset(materials+'/'+key)
+        if not tex: raise RuntimeError(key)
+        setprop(tex,'srgb',False)
+        setprop(tex,'compression_settings',u.TextureCompressionSettings.TC_NORMALMAP)
+        asset.save_loaded_asset(tex,False)
+        normals[swatch]=tex
     marks=asset.load_asset(materials+'/T_ArmorerMarks')
     if not marks:
         raise RuntimeError('Missing baked surface marks')
@@ -62,21 +93,26 @@ def palette_materials():
     grain=node(u.MaterialExpressionTextureSample,-1100,10)
     setprop(grain,'texture',marks)
     setprop(grain,'sampler_type',u.MaterialSamplerType.SAMPLERTYPE_MASKS)
+    relief=parameter('SurfaceNormal',u.MaterialExpressionTextureSampleParameter2D,-720,-480)
+    setprop(relief,'texture',normals['Burnished'])
+    setprop(relief,'sampler_type',u.MaterialSamplerType.SAMPLERTYPE_NORMAL)
+    if not lib.connect_material_property(relief,'RGB',u.MaterialProperty.MP_NORMAL):
+        raise RuntimeError('Unconnected armour normal')
     variation=node(u.MaterialExpressionLinearInterpolate,-830,60)
     wire(grain,'G',variation,'A')
     wire(grain,'R',variation,'B')
     wire(metal,'',variation,'Alpha')
     remap=node(u.MaterialExpressionMultiply,-620,-70)
-    setprop(remap,'const_b',.31)
+    setprop(remap,'const_b',.53)
     wire(variation,'',remap,'A')
     biased=node(u.MaterialExpressionAdd,-430,-60)
-    setprop(biased,'const_b',.80)
+    setprop(biased,'const_b',.69)
     wire(remap,'',biased,'A')
     color=node(u.MaterialExpressionMultiply,-230,-99)
     wire(pigment,'',color,'A')
     wire(biased,'',color,'B')
     rough_scale=node(u.MaterialExpressionMultiply,-620,230)
-    setprop(rough_scale,'const_b',.15)
+    setprop(rough_scale,'const_b',.34)
     wire(variation,'',rough_scale,'A')
     rough_sum=node(u.MaterialExpressionAdd,-280,285)
     wire(rough_scale,'',rough_sum,'A')
@@ -97,6 +133,15 @@ def palette_materials():
             u.MaterialEditingLibrary.set_material_instance_vector_parameter_value(mi, param, value)
         u.MaterialEditingLibrary.set_material_instance_scalar_parameter_value(mi, 'Metal', metal)
         u.MaterialEditingLibrary.set_material_instance_scalar_parameter_value(mi, 'Roughness', roughness)
+        if name=='Mail':
+            swatch='Mail'
+        elif name in ('Leather','Obsidian'):
+            swatch='Hide'
+        elif name in ('Wine','Velvet','Crimson','Azure','DeepBlue','SeaSilk','Lining','Ivory'):
+            swatch='Twill'
+        else:
+            swatch='Burnished'
+        u.MaterialEditingLibrary.set_material_instance_texture_parameter_value(mi,'SurfaceNormal',normals[swatch])
         asset.save_loaded_asset(mi)
         result[name] = mi
     return result
@@ -112,6 +157,9 @@ def import_fbx(name, kind, skeleton=None):
     setprop(opts, 'mesh_type_to_import', kinds[kind])
     if skeleton:
         setprop(opts, 'skeleton', skeleton)
+    if kind != 'clip':
+        mesh_opts=opts.skeletal_mesh_import_data if kind=='rig' else opts.static_mesh_import_data
+        setprop(mesh_opts,'normal_import_method',u.FBXNormalImportMethod.FBXNIM_IMPORT_NORMALS)
     if kind == 'clip':
         opts.anim_sequence_import_data.set_editor_property('use_default_sample_rate', False)
         opts.anim_sequence_import_data.set_editor_property('custom_sample_rate', 60)
@@ -152,7 +200,8 @@ def run():
     if knight.skeleton != skeleton: raise ValueError('Character skeletons do not match')
     assign_materials(hero, by_name, True)
     assign_materials(knight, by_name, True)
-    assign_materials(import_fbx('SM_FallenBlade', 'static'), by_name, False)
+    for name in ('SM_FallenBlade','SM_FallenShield','SM_FallenKnee'):
+        assign_materials(import_fbx(name,'static'),by_name,False)
     report={}
     for f in sorted(source.glob('AN_*.fbx')):
         clip = import_fbx(f.stem, 'clip', skeleton)
@@ -163,7 +212,7 @@ def run():
     comp=actor.skeletal_mesh_component
     comp.set_skeletal_mesh_asset(hero)
     names = [str(comp.get_bone_name(i)) for i in range(comp.get_num_bones())]
-    for b in ('Root','Pelvis','Forward','BladeBase','BladeTip','UpperArmR','ForearmR','HandR'):
+    for b in ('Root','Pelvis','Forward','BladeBase','BladeTip','UpperArmR','ForearmR','HandR','CloakTop','CloakHem','ShieldPlate','KneePlateL'):
         if b not in names: raise ValueError('Missing bone '+b)
     for b in ['Root','Pelvis','Forward','BladeTip','HandR','Head']:
         report[b] = str(comp.get_socket_location(b))

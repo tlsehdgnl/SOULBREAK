@@ -70,7 +70,7 @@
   "revised_release": {
     "method": "Standalone NullRHI; forced press/release events use the regular Enhanced Input mappings. Times count fixed simulation frames until the first property observation of the action. This includes command/query scheduling and excludes physical mouse, rendering and display latency.",
     "runtime": "packaged Development",
-    "code_sha256": "498cfe6d557f20775e214a3c3d91e07dad04dcc3be4f7edeefc8dba0b610e8a2",
+    "code_sha256": "a2dee97871ee897b120fcb4ccfc9d7e9037dcbaff271ad47e76451c597d33450",
     "cases": [
       {
         "case": "early_second_click",
@@ -133,5 +133,7 @@
         "observed_until_frame": 100
       }
     ]
-  }
+  },
+  "revised_date": "2026-11-12",
+  "revised_version": "0.3.0"
 }

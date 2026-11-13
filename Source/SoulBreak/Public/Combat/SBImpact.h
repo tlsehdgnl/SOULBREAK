@@ -26,6 +26,8 @@ private:
     TArray<FVector> SparkVelocity;
     TArray<FVector> FragmentVelocity;
     FVector LaunchSpeed = FVector::ZeroVector;
+    FQuat RestRotation = FQuat::Identity;
+    float RestHeight = 0.f;
     float Age = 0.f;
     float Ground = 0.f;
     float ShardSize = 1.f;

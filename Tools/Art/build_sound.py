@@ -87,4 +87,37 @@ arr=np.uint8(np.clip(209+13*coarse+7*fine+8*grain-19*veins,120,253))
 def chunk(tag,b):return struct.pack('>I',len(b))+tag+b+struct.pack('>I',zlib.crc32(tag+b)&0xffffffff)
 raw=b''.join(b'\0'+r.tobytes() for r in arr)
 (out/'T_Mineral.png').write_bytes(b'\x89PNG\r\n\x1a\n'+chunk(b'IHDR',struct.pack('>IIBBBBB',N,N,8,0,0,0,0))+chunk(b'IDAT',zlib.compress(raw,8))+chunk(b'IEND',b''))
-print('Generated 14 stereo cues and a mineral tile in',out)
+# A scrape that draws breath before the shield charge, and a low, two-pitch bell
+# for the expanding wave. Both are distinct from the attack's impact sound.
+u=t(.72)
+pressure=np.minimum(u/.38,1)*np.exp(-np.maximum(u-.38,0)*15)
+scrape=bandnoise(len(u),320,2400)*pressure*(.65+.35*np.sin(2*pi*(9*u+13*u*u)))
+save('Charge',scrape+.40*ring(u,93,[1,1.57,2.45],.22),.53,.45)
+u=t(1.55)
+peal=ring(u,109.5,[1,1.194,1.987,2.694,3.93],.76)+.42*ring(u,164,[1,1.202,2.01,2.72],.64)
+save('Wave',peal*(1-np.exp(-u*110)),.69,.90)
+
+# Wood-backed shield boards split in separate cracks. A knee cop gives a short
+# strap snap and then smaller, higher rivets ticking onto flagstone.
+for name,base,times in [('ShieldBreak',112,(.00,.033,.09,.24,.46)),
+                        ('KneeBreak',386,(.00,.056,.175,.282,.419))]:
+    u=t(1.12)
+    impact=np.zeros_like(u)
+    for n,at in enumerate(times):
+        start=int(at*rate)
+        v=u[:len(u)-start]
+        body=ring(v,base*(1+.23*n),[1,1.53,2.16,3.58],.13/(1+n*.13))
+        crack=bandnoise(len(v),420 if n==0 else 650,5200)*np.exp(-v*(35+8*n))
+        impact[start:]+=(body+.95*crack)/(1+.55*n)
+    save(name,impact,.76,.63)
+print('Generated 18 stereo cues and a mineral tile in',out)
+
+# Opacity for the short bursts of masonry dust under the knight's feet.
+# Retain a zero border so rotating overlapping billboards never reveal their corners.
+scale=(N-1)*.5
+xx,yy=(x-scale)/scale,(y-scale)/scale
+distance=np.sqrt((xx+.095*field(5))**2+(yy+.095*field(6))**2)
+lobes=np.maximum(0.,1.-distance**2/.81)**2
+dust=np.uint8(np.clip(lobes*(.60+.18*field(9)+.08*field(26)+.05*field(59)),0,1)*255)
+raw=b''.join(b'\0'+r.tobytes() for r in dust)
+(out/'T_StoneDust.png').write_bytes(b'\x89PNG\r\n\x1a\n'+chunk(b'IHDR',struct.pack('>IIBBBBB',N,N,8,0,0,0,0))+chunk(b'IDAT',zlib.compress(raw,8))+chunk(b'IEND',b''))

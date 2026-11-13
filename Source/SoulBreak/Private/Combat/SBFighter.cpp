@@ -50,13 +50,15 @@ void ASBFighter::LoadFighter(const FString& Name, float DesiredHeight)
     Contact->RegisterComponent();
     Clips = CombatData->Animations;
     Cues = CombatData->Sounds;
-    for (const TCHAR* NamePart : {TEXT("Idle"),TEXT("KnightIdle"),TEXT("StrafeL"),TEXT("StrafeR"),TEXT("Backstep"),TEXT("Walk"),TEXT("OathCut"),TEXT("Run"),TEXT("Cut"),TEXT("ReturnCut"),TEXT("Evade"),TEXT("Parry"),TEXT("Stagger"),TEXT("Sunder"),TEXT("HitReact"),TEXT("Death"),TEXT("Stomp"),TEXT("SwordSweep"),TEXT("Bash")})
+    for (const TCHAR* NamePart : {TEXT("Idle"),TEXT("KnightIdle"),TEXT("StrafeL"),TEXT("StrafeR"),TEXT("Backstep"),TEXT("Walk"),TEXT("OathCut"),TEXT("Run"),TEXT("Cut"),TEXT("ReturnCut"),TEXT("Evade"),TEXT("Parry"),TEXT("Stagger"),TEXT("Sunder"),TEXT("HitReact"),TEXT("Death"),TEXT("Stomp"),TEXT("SwordSweep"),TEXT("Bash"),TEXT("KnightWalk"),TEXT("ShieldCharge"),TEXT("BellWave"),TEXT("ShoulderCheck"),
+                                  TEXT("LowCut"),TEXT("LowReturnCut"),TEXT("LowOathCut")})
     {
         if (Clips.FindRef(FName(NamePart))) continue;
         const FString Asset = FString::Printf(TEXT("/Game/SoulBreak/Animations/AN_%s.AN_%s"),NamePart,NamePart);
         if (UAnimSequence* Anim = LoadObject<UAnimSequence>(nullptr,*Asset,nullptr,LOAD_NoWarn)) Clips.Add(FName(NamePart),Anim);
     }
-    for (const TCHAR* Sound : {TEXT("Swing"),TEXT("Impact"),TEXT("Parry"),TEXT("Dodge"),TEXT("Break"),TEXT("Stomp"),TEXT("Shield"),TEXT("BodyHit"),TEXT("Step"),TEXT("HeavyStep")})
+    for (const TCHAR* Sound : {TEXT("Swing"),TEXT("Impact"),TEXT("Parry"),TEXT("Dodge"),TEXT("Break"),TEXT("Stomp"),TEXT("Shield"),TEXT("BodyHit"),TEXT("Step"),TEXT("HeavyStep"),
+                              TEXT("Charge"),TEXT("Wave"),TEXT("ShieldBreak"),TEXT("KneeBreak")})
     {
         if (Cues.FindRef(FName(Sound))) continue;
         FString Asset = FString::Printf(TEXT("/Game/SoulBreak/Audio/S_%s.S_%s"),Sound,Sound);
@@ -87,13 +89,14 @@ void ASBFighter::AlignMesh(float DesiredHeight)
 void ASBFighter::Pose(FName Clip, bool bLoop, float Duration, bool bRestart)
 {
     if (Clip==TEXT("Idle") && bHeavy && Clips.Contains(TEXT("KnightIdle"))) Clip=TEXT("KnightIdle");
+    if (Clip==TEXT("Walk") && bHeavy && Clips.Contains(TEXT("KnightWalk"))) Clip=TEXT("KnightWalk");
     if (!bRestart && CurrentClip==Clip) return;
     UAnimSequence* Sequence=Clips.FindRef(Clip);
     auto* Motion=Cast<USBMotionInstance>(GetMesh()->GetAnimInstance());
     if (!Sequence || !Motion) return;
     auto IsGait=[](FName Name)
     {
-        return Name==TEXT("Walk") || Name==TEXT("Run") || Name==TEXT("Backstep") ||
+        return Name==TEXT("Walk") || Name==TEXT("KnightWalk") || Name==TEXT("Run") || Name==TEXT("Backstep") ||
             Name==TEXT("StrafeL") || Name==TEXT("StrafeR");
     };
     const bool MatchStride=bLoop && IsGait(CurrentClip) && IsGait(Clip);

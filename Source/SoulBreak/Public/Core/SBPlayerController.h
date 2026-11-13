@@ -17,5 +17,6 @@ public:
     void ToggleHelp();
     void LeaveGame();
 private:
+    void CaptureGameplayMouse();
     UPROPERTY(Transient) TObjectPtr<USBCombatOverlay> Overlay;
 };

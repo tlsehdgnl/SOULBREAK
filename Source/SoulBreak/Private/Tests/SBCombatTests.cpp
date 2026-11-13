@@ -48,6 +48,30 @@ bool FSBDeathFirst::RunTest(const FString&)
     TestFalse(TEXT("No break"),T.Broken);
     return true;
 }
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FSBArmorRoutes,"SoulBreak.Boss.IndependentArmorAndCounter",EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+bool FSBArmorRoutes::RunTest(const FString&)
+{
+    int32 Last=-1, Phase=1;
+    float HP=400, Shield=75, Knee=65;
+    bool bShield=false,bKnee=false;
+    auto HitShield=[&](int32 Id,float Damage,float Scale) {
+        return SBCombat::ResolvePart(Id,Last,Damage,ESBArmorPart::Shield,HP,Shield,bShield,Phase,Scale);
+    };
+    HitShield(1,20,1.5f);
+    TestEqual(TEXT("counter increases shield damage only"),Shield,45.f);
+    TestEqual(TEXT("base HP damage even during exposure"),HP,380.f);
+    SBCombat::ResolvePart(1,Last,20,ESBArmorPart::Knee,HP,Knee,bKnee,Phase);
+    TestEqual(TEXT("same swing cannot damage another body part"),Knee,65.f);
+    TestTrue(TEXT("shield breaks independently"),HitShield(2,45,1)==ESBHitResult::Broken);
+    TestTrue(TEXT("shield flag set"),bShield);
+    TestEqual(TEXT("shield alone leaves phase one active"),Phase,1);
+    TestTrue(TEXT("body blow on broken shield"),HitShield(3,20,1)==ESBHitResult::Body);
+    HP=220;
+    const ESBHitResult Cross=SBCombat::ResolvePart(4,Last,65,ESBArmorPart::Knee,HP,Knee,bKnee,Phase);
+    TestTrue(TEXT("crossing health threshold still breaks knee"),Cross==ESBHitResult::Broken && bKnee);
+    TestEqual(TEXT("simultaneous HP transition applies exactly once"),Phase,2);
+    return true;
+}
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FSBDefense,"SoulBreak.Combat.WindowsAndResources",EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 bool FSBDefense::RunTest(const FString&)
 {

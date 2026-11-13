@@ -31,7 +31,7 @@ private:
     int32 LastParries = 0;
     int32 LastPatternGeneration = -1;
     int32 LastBossHP = 400;
-    bool bLastBroken = false;
+    int32 LastBreakCount = 0;
     bool bResultSeen = false;
     bool bPerf = false;
     bool bVideo = false;

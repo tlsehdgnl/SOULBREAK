@@ -1,36 +1,46 @@
-# SOUL BREAK · 조작과 화면 검증
+# SOUL BREAK 0.3.0 검증 기록
 
-UE 5.8.4, Apple Silicon M5 Pro 64GB, macOS 27.0.1에서 검사했다. 기존 빌드와 새 빌드 모두 실제 Enhanced Input 경로에 동일한 버튼 누름·뗌 이벤트를 보냈다.
+2026년 11월 12일, UE 5.8.4에서 잿빛 대성당의 세 부위 파괴, 여섯 공격 패턴, 교체된 캐릭터·장비·환경을 검증했다. Mac 테스트 장비는 Apple M5 Pro, 통합 메모리 64GB이다.
 
-## 공격 직후 입력
+## 마우스 시점 수정
 
-| 첫 베기 이후 입력 | 이전 패키지 | 개선된 패키지 |
+Mac의 AppKit 이벤트 큐에 버튼을 누르지 않은 좌우·상하 이동 6개를 보내 실제 카메라 회전값을 읽었다. 수정 전에는 0개, 수정 후에는 6개 모두 의도한 각도로 반영됐다. 비활성 창에서는 같은 6개 입력에도 시점이 유지됐다. 에디터와 개발 패키지에서는 자유 시점, 조작 수첩에서 복귀, 기사 고정 중 구도 조절을 확인했다. Shipping 앱은 두 번 새로 실행해 시작 시 기사 정면을 향하는지 확인했다. 이 검사는 자동 입력을 사용했고 Windows 실기와 물리 마우스·트랙패드 직접 조작은 미검증이다. [수정 빌드 입력 검증](mouse-look.json) · [Shipping 검사](shipping-mac.json)
+
+아래 전투 영상과 성능 수치는 마우스 수정 직전 빌드에서 기록했다. 각 JSON에 해당 실행 파일의 해시를 남겼다.
+
+## 전투
+
+| 실행 환경 | 30Hz | 60Hz |
 |---|---|---|
-| 약 0.20초에 두 번째 좌클릭 | 2타 미실행 | 입력을 기억하고 첫 베기 회복 완료 후 2타 실행 |
-| 약 0.25초에 Space | 회피 미실행 | 유효 타격을 마친 뒤 회피 실행 |
-| 약 0.45초에 우클릭 | 패링 미실행 | 남은 회복을 끊고 패링 실행 |
+| Mac 에디터에서 게임 실행 | [43/43](editor-30.json) | [43/43](editor-60.json) |
+| Mac Development 패키지 | [43/43](package-mac-30.json) | [43/43](package-mac.json) |
 
-표의 세 사례는 30Hz와 60Hz 양쪽에서 재현했다. [동일 입력 비교 기록](input-response.json)은 고정된 시뮬레이션에서 콘솔 키 주입부터 상태가 관찰될 때까지의 시간이며, 명령 실행과 상태 조회에 드는 프레임도 포함한다. 별도의 컨트롤러 직접 주입 검사에서는 늦은 패링이 다음 게임 프레임에 시작했고, 타격 판정 중에 누른 회피는 해당 판정 종료를 기다렸다. 버튼 장치에서 화면까지의 물리적 지연은 측정하지 않았다.
+- [C++ 단위 테스트 5개](unit-tests.json)가 모두 통과했다. 중복 피해 방지, 파괴 이벤트 1회 처리, 사망 우선순위, 방어 시간창과 자원, 부위별 내구도와 반격 보너스를 확인했다.
+- 실제 컨트롤러 키 이벤트로 Tab, F, 좌클릭, D를 입력했다. 방패 돌진을 옆으로 피한 뒤 첫 베기에 본체 20·방패 30 피해가 적용됐다. 돌진 경로 안에 서 있으면 28 피해가 한 번 발생했다. 무릎을 겨냥한 베기는 방패 내구도에 영향을 주지 않았다.
+- 방패와 무릎 메시의 독립 뼈대가 숨겨지고 손과 정강이가 남는지 확인했다. 오른팔을 먼저 깨는 경로와 체력으로 2페이즈에 들어가는 경로, 사망·전환 우선순위, 종파의 안쪽 안전지대와 진행 중인 파면, 발구르기 봉쇄, 어깨치기를 검증했다.
+- 각 실행에서 승리 후 10회, 패배 후 10회 재시작했다. 캐릭터 배치와 일부 마무리 피해는 테스트가 주입한다. 패키지 60Hz에서 회복 중 패링 입력은 다음 프레임에 관찰됐다. [동일 버튼 입력의 이전 버전 비교](input-response.json)
+- [에셋 검사](armor-assets.json)에서 동일한 스켈레톤에 연결된 26개 시퀀스, 공격·파괴 효과음, 세 가지 떨어진 장비 메시, 갑주의 실제 PBR 맵 연결과 성당의 직선·기둥 우회 내비게이션 경로를 확인했다.
 
-## 성당 입구의 전후 화면
+## 플레이 화면
 
-두 화면은 같은 입구에서 바라본 것이다. 새 화면은 압축 배포한 Mac Shipping 앱에서 캡처했다.
+이전 버전의 성당 입구
 
-![개선 전 성당 입구](before.jpg)
+![기존 캐릭터와 성당](before.jpg)
 
-![개선 후 성당 입구](after.jpg)
+이번 빌드의 성당 입구
 
-## 빌드와 플레이
+![새 캐릭터와 성당](after.jpg)
 
-- [에디터 30Hz](editor-30.json)와 [60Hz](editor-60.json), [Mac Development 패키지 30Hz](package-mac-30.json)와 [60Hz](package-mac.json)에서 각각 35개 통합 검사를 통과했다. 입력 중복과 우선순위, 자원 차감, 오른팔과 몸통 피해, 예고 중단, 패턴 선택, 승리·패배 후 재시작 각 10회를 검사했다. 승패·초기화의 반복 검사는 일부 위치·피해를 주입한다.
-- [필수 전투 자동 테스트](unit-tests.json)는 중복 적중, 팔 파괴 1회, 사망 우선, 방어 시간창과 자원 소모를 검증한다.
-- 19개 애니메이션이 같은 캐릭터 스켈레톤을 참조하는지, 길이가 유효한지와 성당의 입구에서 기사까지 내비게이션 경로가 연결되는지 확인했다.
-- [시연 영상](../../Builds/Review/Demo/SoulBreak-Demo.mp4)은 Development 앱의 실제 입력·피해·애니메이션을 사용한다. 시연은 전투 상태를 직접 바꾸지 않는다. [이벤트와 음향 검수](mac-demo.json)
-- [성능 측정](mac-performance.json)은 1080p Medium에서 팔이 부서진 2페이즈로 진입해 60초씩 세 번 실행했다. 성능 검사에서만 체력을 보충해 같은 상황을 유지했다. [Unreal Insights 원본](../../Builds/Review/Performance/phase2.utrace)
-- [Shipping 검사](shipping-mac.json)는 앱의 독립 실행, 렌더링, 종료와 ZIP 압축 해제 후 서명 검사를 다룬다. Windows 실기 실행, Apple 공개 배포용 서명·공증은 미검증이다. [메뉴 검사](menu.json)는 기존 버전의 별도 검수 기록이다.
+[실제 전투 영상](../../Builds/Review/Demo/SoulBreak-Demo.mp4)은 Mac Development 앱에서 78초간 촬영했다. 입력 시연은 검 피해, 보스 체력, 갑주 내구도를 직접 설정하지 않는다. 첫 전투에서 5.9초에 오른팔, 16.4초에 방패, 25.3초에 무릎 갑주가 깨진다. 49.1초에 승리하고 52.7초에 재도전 전투가 시작된다. [영상 이벤트와 오디오](mac-demo.json)
 
-## 재현
+## 성능과 배포
 
-`python3 Tools/build.py test`로 단위 테스트를 실행한다. Development 패키지에 `-SBAudit -SBAuditLook -benchmark -NullRHI -nosound -unattended -UseFixedTimeStep -FPS=60`을 전달하면 통합 검사를 재현할 수 있다. `python3 Tools/probe_input.py <실행파일> <빈 결과 폴더> --fps 30 60`으로 세 가지 동일 입력 사례를 재현할 수 있다. macOS 앱이 쓰는 결과 경로는 앱 컨테이너 안에 둔다.
+[성능 기록](mac-performance.json)은 1080p Medium, VSync 해제, 화면 비율 100%로 2페이즈를 60초씩 세 번 실행한 결과다. 인게임 프레임 시간의 95백분위는 각 회차에서 14.00ms, 14.59ms, 14.42ms였다. 성능 측정 모드에서는 일정한 전투 부하를 유지하기 위해 체력을 보충한다. 세 회차를 저장한 뒤 Insights 추적을 켠 Development 프로세스가 엔진 종료 중 SIGSEGV로 끝났다. [Unreal Insights 원본](../../Builds/Review/Performance/phase2.utrace)
 
-이 수정은 기존 `a5fc9c2` 위의 작업 파일이다. 배포와 편집용 소스 ZIP을 연결하는 해시는 로컬 `Builds/Delivery.json`에 기록한다.
+[Shipping 검사](shipping-mac.json)에는 앱 단독 실행, Metal 렌더링, 종료 상태와 배포 ZIP을 다시 풀어 확인한 결과가 들어 있다. Windows 실기 빌드·실행과 macOS 공개 배포용 공증은 미검증이다. [이전 메뉴 검수](menu.json)는 11월 3일 빌드에서 실행했다.
+
+## 재현하기
+
+`python3 Tools/build.py test`로 단위 테스트를 실행한다. Development 패키지 실행 인수에 `-SBAudit -SBAuditArmorAssets -SBAuditLook -benchmark -NullRHI -nosound -unattended -UseFixedTimeStep -FPS=60 -SBAuditOut=<결과 파일>`을 지정하면 갑주·입력·재시작 검사를 실행한다. Mac 패키지의 결과 경로는 앱 컨테이너 안에 둔다. Windows에서도 플랫폼에 맞는 게임 실행 파일을 사용한다.
+
+`python3 Tools/review.py demo <Development 앱> <빈 결과 폴더> --ffmpeg <FFmpeg>`로 영상과 이벤트를 기록한다. 같은 도구의 `perf` 모드가 2페이즈 성능을 측정한다. 실행 ZIP·소스 ZIP·영상 해시는 로컬 `Builds/Delivery.json`에 기록한다.

@@ -1,4 +1,4 @@
-"""Build the chapel of the Severed Sun. Run in Blender 4.3 background mode.
+"""Build the chapel of the Severed Sun. Run in Blender 4.5 LTS background mode.
 
 The FBX is a single batched environment mesh. Gameplay collision lives on separate,
 simple volumes in the Unreal level so floor inlay and masonry never snag characters.
@@ -48,8 +48,22 @@ palette.update({
     'RubyGlass':((.343,.031,.072),.40,.02,.95),'Rune':((.18,.35,.32),.41,.10,.30),
     'Icon':((1.,1.,1.),.52,.24,.41),'Incense':((.23,.36,.49),.9,0,.07)
 })
+palette.update({
+    'Pavement': ((.372,.39,.39),.95,0,0), 'ChoirPaving': ((.41,.405,.387),.88,0,0),
+    'Ashlar': ((.58,.58,.53),1.,0,0), 'Sootstone': ((.19,.215,.24),1.,0,0),
+    'Parchment': ((.75,.68,.54),.99,0,0), 'Chalk': ((.63,.66,.59),.99,0,0),
+    'Carving': ((.42,.46,.44),.95,0,0), 'Tracery': ((.25,.24,.205),.84,.06,0),
+    'Memorial': ((.34,.30,.22),.86,.30,0), 'Purbeck': ((.23,.245,.23),.83,.02,0),
+    'VaultWeb': ((.26,.23,.20),.99,0,0), 'SaintGlass': ((1.,1.,1.),.6,0,.55),
+    'FlameSheet': ((1,.33,.02),1,0,.9), 'Coal': ((.027,.019,.014),.99,0,.025),
+    'Oak': ((.104,.047,.021),.74,0,0), 'Sculpture': ((.72,.65,.55),.99,0,0),
+    'CyanGlass': ((.087,.198,.195),.65,.02,.43), 'SeaGlass': ((.049,.115,.15),.67,.02,.42),
+    'IvoryGlass': ((.42,.41,.33),.56,0,.46), 'AmberGlass': ((.36,.21,.085),.59,.01,.48),
+    'RubyGlass': ((.205,.045,.054),.57,.01,.44),
+})
 (out / 'chapel_materials.json').write_text(json.dumps(palette))
 V=[]; F=[]; M=[]
+art_uv={}
 def surface(v,f,mat):
     n=len(V);V.extend([tuple(p) for p in v]);F.extend(tuple(n+i for i in face) for face in f);M.extend([mat]*len(f))
 def box(x,y,z,dx,dy,dz,mat):
@@ -78,40 +92,49 @@ def post(x,y,base,h,r):
     for i in range(8):
         a=2*pi*i/8;dx=r*.78*cos(a);dy=r*.78*sin(a)
         taper((x+dx,y+dy,base+h*.12),(x+dx*.92,y+dy*.92,base+h*.89),r*.29,r*.25,'Chalk' if i%2==1 else 'Carving',8)
-def flame(x,y,z,sz):
-    taper((x,y,z),(x+sz*.18,y,z+sz*.85),sz*.38,sz*.31,'Wick',6)
-    taper((x+sz*.18,y,z+sz*.72),(x-sz*.1,y+.08*sz,z+sz*1.7),sz*.37,0,'Wick',6)
-    taper((x,y-.09*sz,z),(x+sz*.08,y-.13*sz,z+sz*.83),sz*.29,0,'Fire',6)
+def flame(x,y,z,size):
+    if size<=3:
+        # A candle has a much shorter point than an open brazier fire.
+        taper((x,y,z),(x+.075*size,y,z+.86*size),size*.28,0.,'Fire',7)
+        return
+    phase=rng.randrange(16)
+    for angle_offset in (0,pi*.54):
+        angle=rng.uniform(-.16,.16)+angle_offset
+        dx=size*.92*cos(angle);dy=size*.92*sin(angle);height=size*2.5
+        corners=[(x-dx,y-dy,z),(x+dx,y+dy,z),(x+dx+size*.12,y+dy,z+height),(x-dx+size*.12,y-dy,z+height)]
+        n=len(V);plate(corners,'FlameSheet')
+        for k,(u,v) in enumerate(((.005,.005),(.995,.005),(.995,.995),(.005,.995))):
+            art_uv[n+k]=(phase+u,v)
 def brazier(x,y,scale=1):
     for z,h,r1,r2,m in [(0,8,31,31,'Iron'),(8,10,31,16,'Burnished'),(18,54,10,7,'Iron'),(72,8,10,23,'Gold'),(80,18,17,38,'Burnished'),(98,4,38,37,'Gold'),(102,4,34,32,'Coal')]:
         taper((x,y,z*scale),(x,y,(z+h)*scale),r1*scale,r2*scale,m)
-    for i in range(7):
-        a=2*pi*i/7; d=18 if i else 0; flame(x+cos(a)*d*scale,y+sin(a)*d*scale,102*scale,(12+(7-i)*2)*scale)
+    for i in range(8):
+        a=i*pi/4;distance=rng.uniform(7,23)*scale;dz=105*scale
+        px=x+distance*cos(a);py=y+distance*sin(a)
+        taper((px-8*scale,py-3*scale,dz),(px+9*scale,py+4*scale,dz+4*scale),4.2*scale,3.4*scale,'Coal',6)
+    for i in range(5):
+        a=2*pi*i/5;d=13 if i else 0
+        flame(x+cos(a)*d*scale,y+sin(a)*d*scale,102*scale,(15 if i else 22)*scale)
     for i in range(4):
         a=i*pi/2;taper((x+21*scale*cos(a),y+21*scale*sin(a),85*scale),(x+40*scale*cos(a),y+40*scale*sin(a),121*scale),4*scale,1,'Iron',5)
 
 # Twenty-metre nave. The joints and inlays are below one centimetre in height.
-box(0,0,-28,2260,2180,55,'Mortar')
-for row in range(-12,13):
-    x=row*91; shift=48 if row%2 else 0
-    for col in range(-11,12):
-        y=col*99+shift
-        if abs(y)>1100:continue
-        box(x,y,-4.6,89.9,97.9,9,rng.choice(['SlabA','SlabA','SlabC','SlabB','SlabD']))
-        if rng.random()<.12:
-            x0=x+rng.uniform(-29,10);y0=y-49
-            strip([(x0,y0,.03),(x0+13,y0+19,.03),(x0+7,y0+28,.03),(x0+21,y0+36,.03)],1.1,'Mortar')
+# Center tesserae and flanking flagstones meet at the original procession bands.
+# All photographed grout and wear are continuous over the paving, including the combat seal.
+box(0,0,-26,2650,2300,50,'Pavement')
+for band_y in (-634,634):
+    box(0,band_y,-.71,2650,122,1.,'ChoirPaving')
 for y in (-836,836,-809,809):box(0,y,.05,2160,3, .32,'Burnished')
 for x in (-833,833):box(x,0,.05,4,1657,.32,'Burnished')
-for r,w,m in [(377,5,'Gold'),(368,2,'Oxide'),(340,4,'Burnished'),(282,3,'Gold'),(261,3,'Oxide'),(76,4,'Gold'),(67,2,'Burnished')]:
+for r,w,m in [(377,5,'Memorial'),(368,2,'Purbeck'),(340,4,'Purbeck'),(282,3,'Memorial'),(261,3,'Purbeck'),(76,4,'Memorial'),(67,2,'Purbeck')]:
     rim(60,0,.38,r,r+w,m)
 for i in range(40):
     a=i*2*pi/40;d=17 if i%5 else 28
-    strip([(60+cos(a)*344,sin(a)*344,.39),(60+cos(a)*(344+d),sin(a)*(344+d),.39)],3.2,'Gold')
+    strip([(60+cos(a)*344,sin(a)*344,.39),(60+cos(a)*(344+d),sin(a)*(344+d),.39)],3.2,'Memorial')
 for i in range(16):
     a=i*pi/8;v=(cos(a),sin(a));w=(-v[1],v[0]);len1=260 if not i%2 else 180
     def gp(d,h):return (60+v[0]*d+w[0]*h,v[1]*d+w[1]*h,.42)
-    plate([gp(75,0),gp(125,-14),gp(len1,0)],'Burnished');plate([gp(75,0),gp(len1,0),gp(125,12)],'Gold')
+    plate([gp(75,0),gp(125,-9),gp(len1,0)],'Purbeck');plate([gp(75,0),gp(len1,0),gp(125,8)],'Memorial')
 for x in (-558,-545):
     for y in range(-720,721,70):box(x,y,.25,3,49,.35,'Rune' if x==-545 else 'Gold')
 
@@ -140,6 +163,19 @@ def glass_lancet(axis,sign,w,tc,sill,sw,h,offset=0):
     p=lambda t,z,d=offset:wallpoint(axis,sign,w,tc+t,sill+z,d)
     stem=h*.67;profile=pointed_profile(sw,(h-stem),8)
     outline=[(-sw,0),(sw,0),(sw,stem)]+list(reversed([(a,b+stem) for a,b in profile]))+[(-sw,stem)]
+    if h>190:
+        # The outer form clips each rectangular panel to a real lancet.
+        points=[(-sw,0),(sw,0)]+list(reversed([(a,b+stem) for a,b in profile]))
+        start_vertex=len(V);plate([p(t,z) for t,z in points],'SaintGlass')
+        index=round(tc/70)%3
+        for k,(t,z) in enumerate(points):
+            art_uv[start_vertex+k]=((index+.007+.986*(t/sw+1)*.5)/3.,.005+.990*z/h)
+        for i in (-1,1):
+            rod(p(i*sw,0,offset+2),p(i*sw,stem,offset+2),2.5,'Tracery')
+        for fraction in (.27,.55):
+            rod(p(-sw,h*fraction,offset+1),p(sw,h*fraction,offset+1),.72,'Iron',5)
+        arch(axis,sign,w,tc,sill+stem,sw,h-stem,2.8,'Tracery',offset+2)
+        return
     plate([p(t,z) for t,z in outline],'SeaGlass')
     # Lead cames, lozenge glass and the candle/flame motif.
     for i in range(3):
@@ -190,18 +226,15 @@ def banner(axis,sign,w,t,top,length,width,offset):
 
 for axis in ('x','y'):
     for sign in (-1,1):
-        w=1110 if axis=='x' else 1060
+        w=(1255 if sign==1 else 1110) if axis=='x' else 1060
         # Jambs and inset gothic lancets read in the level even with flat lighting.
-        wallbox(axis,sign,w,0,520,2280,80,1056,'Deep',-38)
+        wallbox(axis,sign,w,0,520,2510,80,1056,'Ashlar',-38)
         for q,mat in [(22,'Carving'),(72,'Chalk'),(81,'Tracery'),(299,'Carving'),(313,'Chalk'),(507,'Chalk'),(515,'Gold'),(970,'Carving')]:
             wallbox(axis,sign,w,0,q,2250,25,9 if q not in (22,299,970) else 30,mat,9)
-        for j in range(5):
-            for i in range(17):
-                t=(i-8)*134+(j%2)*67
-                wallbox(axis,sign,w,t,37+j*55,132,15,53,rng.choice(['SlabA','SlabC','Carving']),6)
+        wallbox(axis,sign,w,0,159,2430,13,277,'Ashlar',9)
         for t in [-870,-440,0,440,870]:
             if axis=='x' and t==0:continue
-            wallbox(axis,sign,w,t,476,306,16,827,'Mortar',14)
+            wallbox(axis,sign,w,t,476,306,16,827,'Sootstone',14)
             for k in (-1,1):
                 pt=wallpoint(axis,sign,w,t+146*k,0,33);post(*pt[:2],0,560,20)
             for d,rad in [(20,143),(31,134)]:
@@ -306,7 +339,7 @@ for i in range(-5,6):
 # crowns and dark recesses remain readable even when the local lamps are out.
 for axis in ('x','y'):
     for sg in (-1,1):
-        w=1110 if axis=='x' else 1060
+        w=(1255 if sg==1 else 1110) if axis=='x' else 1060
         for center in [-867,-438,438,867]:
             for delta in [-70,0,70]:
                 t=center+delta
@@ -342,6 +375,140 @@ for sx,sy in [(-430,-1),(460,-1),(-440,1),(455,1)]:
         verts=[a+Vector((-21,0,0)),a+Vector((21,0,0)),b+Vector((52,0,0)),b+Vector((-52,0,0))]
         plate(verts,'Incense')
 
+# The rose lights the east apse from behind a triumphal arch. The choir stalls,
+# effigies, balustrades and piers sit past the arena boundary at x=1007.
+def loft(rings, material, sides=16, modulation=0., phase=0.):
+    verts=[]
+    for x,y,z,rx,ry in rings:
+        for k in range(sides):
+            a=2*pi*k/sides
+            ripple=1.+modulation*(.58*cos(7*a+phase)+.25*sin(3*a-.03*z)+.17*cos(5*a+.008*z))
+            verts.append((x+rx*cos(a)*ripple,y+ry*sin(a)*ripple,z))
+    last=(len(rings)-1)*sides
+    faces=[tuple(reversed(range(sides))),tuple(last+k for k in range(sides))]
+    for row in range(len(rings)-1):
+        for k in range(sides):
+            k1=(k+1)%sides;o=row*sides
+            faces.append((o+k,o+k1,o+sides+k1,o+sides+k))
+    surface(verts,faces,material)
+
+def mourner(x,y,sign):
+    # Knees and shoulders deform the stone mantle. The cowl is hollow towards
+    # the crossing and the separately modeled lowered face is in its own shadow.
+    box(x,y,8,88,99,16,'Purbeck');box(x,y,19,81,93,7,'Chalk')
+    for z,h,r,d in [(23,9,49,45),(32,10,44,37),(42,66,37,39),(108,8,41,46),(116,5,49,47)]:
+        taper((x,y,z),(x,y,z+h),r,d,'Purbeck' if z==42 else 'Carving',8,pi/8)
+    base=121
+    body=[(0,3,0,29,36),(2,1,8,26,32),(0,0,31,23,28),(-2,-1,53,22,25),
+          (0,-1,83,15,19),(2,0,102,18,22),(1,0,124,17,29),(0,0,139,12,24),(-3,0,147,8,11)]
+    loft([(x+dx,y+dy*sign,base+h,rx,ry) for dx,dy,h,rx,ry in body],'Sculpture',36,.18,.4*sign)
+    # Deep sweeping folds curve around the bent front leg. A weathered soldier's
+    # long sword rests point-down, with the gloved hands folded on its pommel.
+    for k in range(8):
+        a=pi*.48+k*pi/7
+        points=[]
+        for j in range(6):
+            q=j/5;ang=a+.29*sin(q*pi)*sign;r=28-11*q
+            points.append((x+r*cos(ang),y+(r+3)*sin(ang),base+3+102*q))
+        for j in range(5):taper(points[j],points[j+1],2.1-j*.19,1.9-j*.16,'Sculpture',6)
+    for side in (-1,1):
+        p=(x,y+side*22,base+131);a=(x-11,y+side*28,base+101);b=(x-25,y+side*6,base+116)
+        taper(p,a,10,8,'Sculpture',9);taper(a,b,8,6,'Sculpture',9)
+        loft([(b[0],b[1],b[2]-3,6,5),(b[0]-4,b[1],b[2]+3,5,5),(b[0]-5,b[1],b[2]+6,3,3)],'Carving',10)
+    rod((x-30,y,base+16),(x-30,y,base+115),2.3,'Memorial',5)
+    rod((x-30,y-13,base+102),(x-30,y+13,base+102),2.2,'Memorial',6)
+    # Open cowl. Elliptical rings run from the front opening to the back cap.
+    contour=[(cos(a*2*pi/32),sin(a*2*pi/32)) for a in range(32)]
+    hc=base+152
+    verts=[(x+dx-.13*zr*v,y+yr*u,hc+zr*v+dz) for dx,yr,zr,dz in
+           [(-16,8,11,0),(-14,15,18,1),(-7,17,21,3),(3,17,22,5),(11,12,17,4),(15,3,7,1)] for u,v in contour]
+    faces=[(r*32+k,r*32+(k+1)%32,(r+1)*32+(k+1)%32,(r+1)*32+k) for r in range(5) for k in range(32)]
+    surface(verts,faces,'Sculpture')
+    loft([(x-11,y,hc-10,3,3),(x-12,y,hc-5,5,6),(x-11,y,hc+4,5.5,6.4),(x-10,y,hc+9,3,4)],'Carving',14)
+    taper((x-14,y,hc+3),(x-18,y,hc-1),2.0,1.0,'Sculpture',5)
+
+# Carved reverse archivolts and voussoirs over the axial apse; short lateral
+# arches terminate at the real outer walls and give the aisle shadows depth.
+for sign in (-1,1):
+    post(1072,sign*402,0,350,32)
+    for dx in (-22,22):
+        post(1072+dx,sign*417,0,355,13)
+    arch_blocks('x',1,1133,sign*696,331,271,271,40)
+    arch('x',1,1133,sign*696,331,263,264,8,'Carving',52)
+    arch('x',1,1133,sign*696,331,254,258,3,'Chalk',56)
+    post(1078,sign*980,0,333,30)
+    mourner(1038,sign*582,sign)
+    # Overlapping deep-set oak seats below the stone wall. Paneled ends, armrests,
+    # curved choir misericords and the brass nail row break up the facade.
+    for j in range(4):
+        y=sign*(235+j*59)
+        box(1194,y,9,103,58,18,'Purbeck');box(1214,y,100,17,55,165,'Oak')
+        box(1195,y,183,56,60,7,'Oak');box(1182,y,44,59,56,11,'Oak')
+        box(1204,y,119,5,42,97,'Carving');box(1200,y,117,4,33,82,'Oak')
+        for edge in (-1,1):
+            yy=y+edge*25
+            rod((1175,yy,50),(1175,yy,71),3.5,'Oak')
+            rod((1175,yy,72),(1206,yy,74),3.6,'Oak')
+            taper((1212,yy,182),(1212,yy,207),5,0,'Oak',8)
+    box(1170,sign*696,4,143,487,8,'Purbeck')
+    box(1181,sign*696,12,128,470,8,'Carving')
+for side_w,off,r,material in [(409,41,9,'Carving'),(398,56,5,'Chalk'),(383,65,4,'Tracery')]:
+    arch('x',1,1125,0,353,side_w,452,r,material,off)
+arch_blocks('x',1,1133,0,353,408,458,51)
+# Shallow steps below the screen fill the distance to the backwall. Each nosing
+# faces into the playable space while staying flush with its collision boundary.
+for front,height,span in [(1009,7,728),(1050,14,708),(1091,22,686)]:
+    east=1260
+    box((east+front)/2,0,height*.5,east-front,span,height,'Purbeck')
+
+# Two iron candle coronas hung from the vault in the side aisles. In elevation
+# the chain is catenary-like rather than standing unsupported on a horizontal ring.
+def corona(cx,cy,z,rad):
+    three=[(cx+rad*cos((k+.2)*2*pi/3),cy+rad*sin((k+.2)*2*pi/3),z+3) for k in range(3)]
+    rod((cx,cy,z+111),(cx,cy,939),1.5,'Iron',6)
+    for anchor in three:
+        mid=((anchor[0]+cx)*.5,(anchor[1]+cy)*.5,(anchor[2]+z+111)*.5-4)
+        rod(anchor,mid,1.2,'Iron',6);rod(mid,(cx,cy,z+111),1.2,'Iron',6)
+    for i in range(32):
+        a=i*pi/16;b=(i+1)*pi/16
+        p=lambda t,dz:(cx+rad*cos(t),cy+rad*sin(t),z+dz)
+        for dz in (-5,4):rod(p(a,dz),p(b,dz),2.3,'Iron',6)
+        if i%2==0:
+            rod(p(a,-6),p(a,6),1.7,'Memorial',6)
+            if i%4==0:
+                px,py,pz=p(a,6);taper((px,py,pz),(px,py,pz+10),2.5,2.2,'Wax',7);flame(px,py,pz+10,2.2)
+for sy in (-1,1):
+    for x in (-179,619):corona(x,sy*770,457 if x<0 else 486,43)
+
+# Nine quadripartite vaults. Each web rises from its springing directly to the
+# diagonal groin. The textured intrados meets the ridges under the old roof shell.
+def arch_rise(half,coordinate,rise):
+    centre=(rise*rise-half*half)/(2.*half)
+    r=centre+half
+    return math.sqrt(max(0.,r*r-(centre+abs(coordinate))**2))
+def vault(x0,x1,y0,y1):
+    spanx=(x1-x0)/2;spany=(y1-y0)/2
+    cx=(x1+x0)/2;cy=(y1+y0)/2
+    spring=565;rise=351
+    def vertex(u,v):
+        x=u*spanx;y=v*spany
+        hx=arch_rise(spanx,x,rise);hy=arch_rise(spany,y,rise)
+        # The slightly bombed panels break flat reflections on the curved masonry.
+        h=max(hx,hy)+5*math.sin(pi*abs(u*v))
+        return (cx+x,cy+y,spring+h)
+    steps=16
+    vertices=[vertex(-1+2*i/steps,-1+2*j/steps) for j in range(steps+1) for i in range(steps+1)]
+    stride=steps+1
+    faces=[(j*stride+i,j*stride+i+1,(j+1)*stride+i+1,(j+1)*stride+i) for j in range(steps) for i in range(steps)]
+    surface(vertices,faces,'VaultWeb')
+    for k in (-1,1):
+        pts=[vertex(-1+2*i/steps,k*(-1+2*i/steps)) for i in range(steps+1)]
+        for a,b in zip(pts,pts[1:]):
+            rod((a[0],a[1],a[2]-4),(b[0],b[1],b[2]-4),5.8,'Carving',7)
+    taper((cx,cy,spring+rise-15),(cx,cy,spring+rise+2),8,14,'Tracery',10)
+for x0,x1 in [(-1130,-480),(-480,480),(480,1280)]:
+    for y0,y1 in [(-1080,-670),(-670,670),(670,1080)]:vault(x0,x1,y0,y1)
+
 # Export with world-oriented UVs so that mineral and fabric detail stays on scale.
 mesh=bpy.data.meshes.new('Nave');mesh.from_pydata(V,[],F);mesh.update();ob=bpy.data.objects.new('Nave',mesh);scene.collection.objects.link(ob)
 slots=list(dict.fromkeys(M))
@@ -354,11 +521,15 @@ for poly,name in zip(mesh.polygons,M):
     i,j=((1,2),(0,2),(0,1))[axis]
     for loop in poly.loop_indices:
         co=mesh.vertices[mesh.loops[loop].vertex_index].co
-        if name=='Icon':
+        if name in ('FlameSheet','SaintGlass'):
+            uv.data[loop].uv=art_uv[mesh.loops[loop].vertex_index]
+        elif name=='Icon':
             uv.data[loop].uv=((co.y+icon_half)/(icon_half*2),(co.z-icon_z)/icon_h)
         elif name=='Incense':
             uv.data[loop].uv=[(0,1),(1,1),(1,0),(0,0)][loop-poly.loop_start]
-        else:uv.data[loop].uv=(co[i]/182,co[j]/182)
+        else:
+            scale={'Pavement':235, 'ChoirPaving':475, 'Ashlar':362, 'Sootstone':262, 'Sculpture':145,'VaultWeb':311}.get(name,175)
+            uv.data[loop].uv=(co[i]/scale,co[j]/scale)
 bpy.context.view_layer.objects.active=ob;ob.select_set(True)
 bpy.ops.export_scene.fbx(filepath=str(out/'SM_Nave.fbx'),use_selection=True,add_leaf_bones=False,bake_anim=False,axis_forward='-Y',axis_up='Z',apply_unit_scale=True,mesh_smooth_type='FACE')
 print('SOULBREAK chapel:',len(V),'vertices;',len(F),'polygons;',len(slots),'materials.')

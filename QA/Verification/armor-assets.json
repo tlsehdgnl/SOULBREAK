@@ -1,0 +1,136 @@
+{
+  "engine": "5.8.4",
+  "date": "2026-11-12",
+  "shared_skeleton": "SK_Hero_Skeleton",
+  "animations": [
+    "Backstep",
+    "Bash",
+    "BellWave",
+    "Cut",
+    "Death",
+    "Evade",
+    "HitReact",
+    "Idle",
+    "KnightIdle",
+    "KnightWalk",
+    "LowCut",
+    "LowOathCut",
+    "LowReturnCut",
+    "OathCut",
+    "Parry",
+    "ReturnCut",
+    "Run",
+    "ShieldCharge",
+    "ShoulderCheck",
+    "Stagger",
+    "Stomp",
+    "StrafeL",
+    "StrafeR",
+    "Sunder",
+    "SwordSweep",
+    "Walk"
+  ],
+  "audio_cues": [
+    "Bell",
+    "BodyHit",
+    "Break",
+    "Chapel",
+    "Charge",
+    "Defeat",
+    "Dodge",
+    "HeavyStep",
+    "Impact",
+    "KneeBreak",
+    "Parry",
+    "Shield",
+    "ShieldBreak",
+    "Step",
+    "Stomp",
+    "Swing",
+    "Victory",
+    "Wave"
+  ],
+  "sampled_materials": {
+    "Iron": [
+      "T_ForgedIron_M",
+      "T_ForgedIron_N"
+    ],
+    "Gilt": [
+      "T_ForgedIron_M",
+      "T_ForgedIron_N"
+    ],
+    "StormSteel": [
+      "T_ForgedIron_M",
+      "T_ForgedIron_N"
+    ],
+    "SeaSilk": [
+      "T_ForgedWool_M",
+      "T_ForgedWool_N"
+    ],
+    "Wine": [
+      "T_ForgedWool_M",
+      "T_ForgedWool_N"
+    ],
+    "Mail": [
+      "T_ForgedIron_M",
+      "T_Mail_N"
+    ],
+    "Leather": [
+      "T_ForgedLeather_M",
+      "T_ForgedLeather_N"
+    ]
+  },
+  "navigation": [
+    [
+      -740.0,
+      -0.0,
+      10.0
+    ],
+    [
+      350.0,
+      -0.0,
+      10.0
+    ]
+  ],
+  "arena_navigation": {
+    "navigation_actors": [
+      "RecastNavMesh-Default"
+    ],
+    "arrival_to_knight": true,
+    "straight": [
+      [
+        -740,
+        0,
+        10
+      ],
+      [
+        350,
+        0,
+        10
+      ]
+    ],
+    "pillar_bypass": true,
+    "detour": [
+      [
+        -745,
+        670,
+        10
+      ],
+      [
+        -551,
+        779,
+        10
+      ],
+      [
+        -418,
+        779,
+        10
+      ],
+      [
+        -205,
+        670,
+        10
+      ]
+    ]
+  }
+}

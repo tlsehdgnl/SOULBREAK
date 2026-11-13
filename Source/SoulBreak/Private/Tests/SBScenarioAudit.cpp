@@ -1,10 +1,14 @@
 #include "Tests/SBScenarioAudit.h"
 #if !UE_BUILD_SHIPPING
 #include "Boss/SBKnight.h"
+#include "Camera/PlayerCameraManager.h"
 #include "Combat/SBTrainingDummy.h"
 #include "Core/SBGameMode.h"
 #include "Player/SBHero.h"
+#include "Components/SkeletalMeshComponent.h"
 #include "EngineUtils.h"
+#include "Engine/GameViewportClient.h"
+#include "Framework/Application/SlateApplication.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/PlayerController.h"
 #include "InputKeyEventArgs.h"
@@ -13,6 +17,8 @@
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
 #include "HAL/FileManager.h"
+#include "Slate/SceneViewport.h"
+#include "Widgets/SViewport.h"
 
 namespace SBAudit
 {
@@ -63,8 +69,17 @@ namespace SBAudit
         JSON.RemoveFromEnd(TEXT("}\n"));
         JSON+=FString::Printf(TEXT(",\n\"input_measurement\":\"Engine simulation time between a synthetic key press and the first post-update tick observing its action; excludes physical input, rendering and display latency.\",\n\"timings\":[%s,%s,%s]\n}\n"),
             *Run.Combo.ToJson(TEXT("early_second_click")),*Run.Dodge.ToJson(TEXT("buffered_dodge")),*Run.Parry.ToJson(TEXT("late_parry")));
+        if (FParse::Param(FCommandLine::Get(),TEXT("SBAuditViewportLook")))
+        {
+            JSON=FString::Printf(TEXT("{\n\"scenario\":\"viewport mouse look\",\"passed\":%s,\"failure\":\"%s\",\n\"method\":\"Synthetic unbuttoned raw pointer motion sent to the live Slate viewport. The engine accumulates hardware-axis samples and applies gameplay bindings. Rotation is sampled from PlayerCameraManager. Physical mouse and display latency are not measured.\",\n\"checks\":[%s]\n}\n"),
+                Failure.IsEmpty()?TEXT("true"):TEXT("false"),*Failure,*FString::Join(Run.Results,TEXT(",\n")));
+        }
         bool bWrote=FFileHelper::SaveStringToFile(JSON,*Path,FFileHelper::EEncodingOptions::ForceUTF8WithoutBOM);
         UE_LOG(LogTemp,Display,TEXT("SBAudit END passed=%d failure=%s path=%s"),Failure.IsEmpty() && bWrote,*Failure,*Path);
+#if WITH_EDITOR
+        // PIE owns a world inside the running editor. Let its caller end that session normally.
+        if (GIsEditor && !IsRunningGame()) return;
+#endif
         FPlatformMisc::RequestExitWithStatus(false,Failure.IsEmpty() && bWrote ? 0 : 1);
     }
 }
@@ -73,9 +88,106 @@ ASBScenarioAudit::ASBScenarioAudit()
 {
 #if !UE_BUILD_SHIPPING
     PrimaryActorTick.bCanEverTick=true;
+    PrimaryActorTick.bTickEvenWhenPaused=FParse::Param(FCommandLine::Get(),TEXT("SBAuditViewportLook"));
     PrimaryActorTick.TickGroup=TG_PostUpdateWork;
 #endif
 }
+#if !UE_BUILD_SHIPPING
+// A separate scenario so regular headless combat tests can still run without a Slate viewport.
+void ASBScenarioAudit::TickViewportLook(APlayerController& PC, ASBGameMode& Game)
+{
+    using namespace SBAudit;
+    UGameViewportClient* Client=GetWorld()->GetGameViewport();
+    FSceneViewport* Viewport=Client ? Client->GetGameViewport() : nullptr;
+    if (!Viewport || !PC.PlayerCameraManager || !Game.Hero->InputComponent)
+    {
+        if (Clock>4.f) End(TEXT("No game viewport, player camera or input component"));
+        return;
+    }
+    const FRotator View=PC.PlayerCameraManager->GetCameraRotation();
+    auto Moved=[&](const FVector2D& Pixels)
+    {
+        // This enters before hardware mouse samples are accumulated, mapped and consumed.
+        const FVector2D Center=Viewport->GetCachedGeometry().GetAbsolutePositionAtCoordinates(FVector2f(.5f,.5f));
+        const TSet<FKey> NoButtons;
+        const FPointerEvent Event(FSlateApplication::CursorPointerIndex,Center,Center,Pixels,NoButtons,FModifierKeysState());
+        Client->GetGameViewportWidget()->OnMouseMove(Viewport->GetCachedGeometry(),Event);
+    };
+    auto Advance=[&] { ++Step; Clock=0; };
+    const FRotator Diff=(View-LookBaseline).GetNormalized();
+    if (FParse::Param(FCommandLine::Get(),TEXT("SBAuditUnfocusedLook")))
+    {
+        if (Clock<.3f) return;
+        if (FApp::HasFocus() || !Viewport->HasMouseCapture() || PC.bShowMouseCursor)
+        {
+            End(TEXT("Background probe requires an inactive app with a captured gameplay viewport"));return;
+        }
+        if (Step==0)
+        {
+            LookBaseline=View;
+            Moved({48,-32});
+            Advance();return;
+        }
+        if (!View.Equals(LookBaseline,.05)) {End(TEXT("Background pointer motion rotated the game camera"));return;}
+        Checkpoint(TEXT("unfocused app ignored captured viewport pointer motion on both axes"));
+        End();return;
+    }
+    switch (Step)
+    {
+    case 0:
+        if (Clock<.3f) return;
+        if (!Viewport->HasMouseCapture() || PC.bShowMouseCursor)
+        {
+            End(TEXT("Play viewport failed to capture the mouse at startup"));return;
+        }
+        LookBaseline=View;
+        Moved({48,-32});
+        Advance();return;
+    case 1:
+        if (Clock<.15f) return;
+        if (Diff.Yaw<1 || Diff.Pitch<1) {End(TEXT("Unbuttoned viewport pointer motion failed to rotate the player camera on both axes"));return;}
+        Checkpoint(FString::Printf(TEXT("free look from viewport pointer: yaw %.2f, pitch %.2f degrees"),Diff.Yaw,Diff.Pitch));
+        Game.ToggleHelp();
+        Advance();return;
+    case 2:
+        if (!Game.bHelpOpen || !PC.bShowMouseCursor) {End(TEXT("Help did not return the cursor"));return;}
+        LookBaseline=View;
+        Moved({40,-20});
+        Advance();return;
+    case 3:
+        if (!View.Equals(LookBaseline,.1)) {End(TEXT("Help pointer moved the gameplay camera"));return;}
+        Game.ToggleHelp();
+        Advance();return;
+    case 4:
+        if (Clock<.2f) return;
+        if (Game.bHelpOpen || PC.bShowMouseCursor || !Viewport->HasMouseCapture()) {End(TEXT("Resume failed to recapture the mouse"));return;}
+        LookBaseline=View;
+        Moved({-48,32});
+        Advance();return;
+    case 5:
+        if (Clock<.15f) return;
+        if (Diff.Yaw>-1 || Diff.Pitch>-1) {End(TEXT("Viewport pointer did not turn and tilt the camera after resume"));return;}
+        Checkpoint(FString::Printf(TEXT("help releases cursor; resumed viewport look: yaw %.2f, pitch %.2f degrees"),Diff.Yaw,Diff.Pitch));
+        PC.InputKey(FInputKeyEventArgs::CreateSimulated(EKeys::Tab,IE_Pressed,1));
+        Advance();return;
+    case 6:
+        PC.InputKey(FInputKeyEventArgs::CreateSimulated(EKeys::Tab,IE_Released,0));
+        if (Clock<1.f) return; // The knight is idle before crossing the encounter line.
+        if (!Game.Hero->bLockedOn) {End(TEXT("Tab did not establish a stationary lock target"));return;}
+        LookBaseline=View;
+        Advance();return;
+    case 7:
+        if (++LookSamples<=12) {Moved({36,-18});return;}
+        if (Clock<.6f) return;
+        if (!Game.Hero->bLockedOn || Diff.Yaw<1 || Diff.Yaw>50 || Diff.Pitch<1 || Diff.Pitch>30)
+        {
+            End(FString::Printf(TEXT("Locked pointer framing out of range: yaw %.2f pitch %.2f"),Diff.Yaw,Diff.Pitch));return;
+        }
+        Checkpoint(FString::Printf(TEXT("locked viewport pointer kept target and adjusted framing: yaw %.2f, pitch %.2f degrees"),Diff.Yaw,Diff.Pitch));
+        End();return;
+    }
+}
+#endif
 void ASBScenarioAudit::Tick(float Dt)
 {
     Super::Tick(Dt);
@@ -91,6 +203,7 @@ void ASBScenarioAudit::Tick(float Dt)
         return;
     }
     ASBHero* H=G->Hero; ASBKnight* K=G->Knight;
+    if (PrimaryActorTick.bTickEvenWhenPaused) {TickViewportLook(*PC,*G);return;}
     auto Key=[&](const FKey& Kb,bool Down) { PC->InputKey(FInputKeyEventArgs::CreateSimulated(Kb,Down?IE_Pressed:IE_Released,Down?1.f:0.f)); };
     for (FKey Kb:Releases) Key(Kb,false);
     Releases.Reset();
@@ -100,7 +213,7 @@ void ASBScenarioAudit::Tick(float Dt)
         if (!Good) End(FString::Printf(TEXT("step %d, reload %d: %s"),Step,Run.Reloads,What));
         return Good;
     };
-    if (Clock>(Step==14 ? 40.f : 6.f))
+    if (Clock>(Step==14 || Step==79 ? 40.f : 6.f))
     {
         End(FString::Printf(TEXT("Timeout at step %d reload %d: hero action %d, boss action %d, seen %d, dummy hp %.0f hero %.0f boss %.0f"),
             Step,Run.Reloads,int32(H->Action),int32(K->Action),Observed,G->Dummy->Health,H->Health,K->Health));return;
@@ -117,6 +230,15 @@ void ASBScenarioAudit::Tick(float Dt)
         if (!H->InputComponent || Clock<.08f) return;
         int32 BossCount=0;for(TActorIterator<ASBKnight> I(GetWorld());I;++I) ++BossCount;
         if (!Require(BossCount==1 && G->Encounter==ESBEncounter::Approach && K->Health==400 && !K->bArmBroken && K->ArmHealth==90 && K->Phase==1 && !K->bEncounterActive && K->PatternsStarted==0 && H->Health==100 && H->Stamina==100 && !H->bLockedOn && !H->bOathReady && G->Dummy->Health==100,TEXT("fresh map failed reset checks"))) return;
+        if (!Require(!K->bShieldBroken && !K->bKneeBroken && K->ShieldHealth==75 && K->KneeHealth==65 &&
+            K->BreakCount==0 && H->SelectedPart==ESBArmorPart::SwordArm,TEXT("armor or target selection persisted after reload"))) return;
+        if (Run.Reloads==0 && FParse::Param(FCommandLine::Get(),TEXT("SBAuditArmorAssets")))
+        {
+            const auto* Mesh=K->GetMesh();
+            if (!Require(Mesh->GetBoneIndex(TEXT("ShieldPlate"))!=INDEX_NONE && Mesh->GetBoneIndex(TEXT("KneePlateL"))!=INDEX_NONE,
+                TEXT("current knight mesh lacks the authored independent shield or knee bone"))) return;
+            Checkpoint(TEXT("knight skeletal mesh exposes separate shield and knee break bones"));
+        }
         if (Run.Reloads==0 && FParse::Param(FCommandLine::Get(),TEXT("SBAuditLook")))
         {
             if (!Require(FApp::HasFocus() && GetWorld()->TimeSeconds<.20f,TEXT("for startup mouse audit run focused or with -benchmark"))) return;
@@ -249,6 +371,11 @@ void ASBScenarioAudit::Tick(float Dt)
         // Wait over one pattern impact interval before crossing the gate on each new world.
         if (Clock<.85f || H->Action!=ESBHeroAction::Ready) return;
         if (!Require(H->Health==100 && !K->bEncounterActive,TEXT("stale encounter state while in approach"))) return;
+        if (Run.Reloads==2 || Run.Reloads==3)
+        {
+            Place(K->GetActorLocation()+K->GetActorForwardVector()*435,0);
+            Next(70);return;
+        }
         Place(K->GetActorLocation()+K->GetActorForwardVector()*122,0);
         Next(11);return;
     case 11:
@@ -285,6 +412,80 @@ void ASBScenarioAudit::Tick(float Dt)
         if ((Run.Reloads%2)==0) K->ApplySwordHit(1000,1000,false);
         else H->ReceivePattern(1000,false);
         Next(16);return;
+    case 70:
+        if (K->Action!=ESBKnightAction::ShieldCharge || K->PatternElapsed>.25f) return;
+        StartPosition=K->GetActorLocation();
+        if (Run.Reloads==3) {Next(81);return;}
+        Key(EKeys::D,true);Next(71);return;
+    case 71:
+        if (Clock<.37f) return;
+        Key(EKeys::D,false);Next(72);return;
+    case 72:
+        if (!K->IsPunishWindow()) return;
+        if (!Require(H->Health==100 && FVector::Dist2D(StartPosition,K->GetActorLocation())>380.f,
+            TEXT("sidestep failed to clear a committed charge lane"))) return;
+        Checkpoint(TEXT("held D cleared a locked charge lane; knight travelled past and entered exposed recovery"));
+        Tap(EKeys::Tab);Next(73);return;
+    case 73:
+        if (!H->bLockedOn) return;
+        Tap(EKeys::F);Next(74);return;
+    case 74:
+        if (H->SelectedPart!=ESBArmorPart::Shield) return;
+        Place(K->GetActorLocation()+(K->PartPoint(ESBArmorPart::Shield)-K->GetActorLocation()).GetSafeNormal2D()*105,0);
+        Tap(EKeys::LeftMouseButton);Next(75);return;
+    case 75:
+        if (K->ShieldHealth==75) return;
+        if (!Require(K->ShieldHealth==45 && K->Health==380 && K->ArmHealth==90 && K->KneeHealth==65,
+            TEXT("locked shield counter failed 1.5x armor-only damage"))) return;
+        Checkpoint(TEXT("F selected shield; actual LMB counter dealt 20 health and 30 shield durability without double contact"));
+        Tap(EKeys::F);Next(76);return;
+    case 76:
+        if (H->SelectedPart!=ESBArmorPart::Knee || H->Action!=ESBHeroAction::Ready) return;
+        Place(K->GetActorLocation()+(K->PartPoint(ESBArmorPart::Knee)-K->GetActorLocation()).GetSafeNormal2D()*98,0);
+        Tap(EKeys::LeftMouseButton);Next(77);return;
+    case 77:
+        if (K->KneeHealth==65) return;
+        if (!Require(K->Health==360 && K->ShieldHealth==45 && K->ArmHealth==90,TEXT("aimed low cut hit an unintended part"))) return;
+        Checkpoint(TEXT("next F selected knee; live low sword arc hit only the knee and body HP once"));
+        K->ApplyPartHit(100,K->ShieldHealth,ESBArmorPart::Shield);
+        K->ApplyPartHit(101,K->KneeHealth,ESBArmorPart::Knee);
+        if (!Require(K->BreakCount==2 && K->Phase==1 && K->bShieldBroken && K->bKneeBroken &&
+            K->GetCharacterMovement()->MaxWalkSpeed==150,TEXT("shield and knee breaks did not disable independent P1 armor"))) return;
+        K->ApplyPartHit(102,90,ESBArmorPart::SwordArm);
+        if (!Require(K->BreakCount==3 && K->Phase==2 && K->PhaseChanges==1,TEXT("three independent breaks did not trigger exactly one phase transition"))) return;
+        if (FParse::Param(FCommandLine::Get(),TEXT("SBAuditArmorAssets")))
+        {
+            auto* Mesh=K->GetMesh();
+            if (!Require(Mesh->IsBoneHiddenByName(TEXT("ShieldPlate")) && Mesh->IsBoneHiddenByName(TEXT("KneePlateL")) &&
+                !Mesh->IsBoneHiddenByName(TEXT("HandL")) && !Mesh->IsBoneHiddenByName(TEXT("ShinL")),
+                TEXT("destroyed plates did not detach independently from the surviving hand/leg"))) return;
+            Checkpoint(TEXT("shield and kneecap bones were hidden after breaks while the hand and shin remained visible"));
+        }
+        Place(K->GetActorLocation()+K->GetActorForwardVector()*305,0);Next(78);return;
+    case 78:
+        if (K->Action!=ESBKnightAction::BellWave || K->PatternElapsed<1.74f) return;
+        if (!Require(H->Health==76 && H->SelectedPart==ESBArmorPart::Body,TEXT("wave did not hit exactly once or broken target did not reset"))) return;
+        Checkpoint(TEXT("all three plates shattered; pursuit slowed to 150 and expanding wave hit a stationary target for 24 once"));
+        Tap(EKeys::F);
+        Place(K->GetActorLocation()+K->GetActorForwardVector()*84,0);Next(79);return;
+    case 79:
+        if (K->Action==ESBKnightAction::ShoulderCheck)
+        {
+            bSawBash=true;
+            H->Health=100; // isolate the next wave from contact damage dealt by shoulder checks.
+        }
+        if (!Require(K->Action!=ESBKnightAction::SwordSweep && K->Action!=ESBKnightAction::Stomp &&
+            K->Action!=ESBKnightAction::Bash && K->Action!=ESBKnightAction::ShieldCharge,
+            TEXT("AI selected attack requiring destroyed armor"))) return;
+        if (K->Action!=ESBKnightAction::BellWave || K->PatternElapsed<1.74f || !bSawBash) return;
+        if (!Require(H->Health==100 && H->SelectedPart==ESBArmorPart::Body,TEXT("safe inner wave radius or broken-target cycle failed"))) return;
+        Checkpoint(TEXT("after all breaks AI used shoulder check and wave; hugging the inner circle avoided wave damage; F skipped destroyed plates"));
+        Next(15);return;
+    case 81:
+        if (K->Action!=ESBKnightAction::ShieldCharge || K->PatternElapsed<1.35f) return;
+        if (!Require(H->Health==72 && !K->IsPunishWindow(),TEXT("stationary hero did not take one charge, or landed charge incorrectly exposed armor"))) return;
+        Checkpoint(TEXT("standing in the lane took one 28-damage shield charge and granted no armor bonus"));
+        Next(15);return;
     case 16:
     {
         bool Win=Run.Reloads%2==0;

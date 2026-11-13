@@ -6,6 +6,7 @@
 #include "Camera/CameraComponent.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/SkeletalMeshComponent.h"
+#include "Engine/GameViewportClient.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/PlayerController.h"
 #include "GameFramework/SpringArmComponent.h"
@@ -13,6 +14,7 @@
 #include "EnhancedInputSubsystems.h"
 #include "InputActionValue.h"
 #include "Misc/App.h"
+#include "UnrealClient.h"
 #include "InputAction.h"
 #include "InputMappingContext.h"
 #include "InputModifiers.h"
@@ -103,6 +105,7 @@ void ASBHero::SetupPlayerInputComponent(UInputComponent* Input)
     IC->BindAction(Button(EKeys::RightMouseButton),ETriggerEvent::Started,this,&ASBHero::TryParry);
     IC->BindAction(Button(EKeys::SpaceBar),ETriggerEvent::Started,this,&ASBHero::TryDodge);
     IC->BindAction(Button(EKeys::Tab),ETriggerEvent::Started,this,&ASBHero::ToggleLock);
+    IC->BindAction(Button(EKeys::F),ETriggerEvent::Started,this,&ASBHero::CycleTargetPart);
     IC->BindAction(Button(EKeys::E),ETriggerEvent::Started,this,&ASBHero::TryOathCut);
     UInputAction* Sprint=Button(EKeys::LeftShift);
     IC->BindAction(Sprint,ETriggerEvent::Started,this,&ASBHero::SetSprinting,true);
@@ -127,14 +130,30 @@ void ASBHero::EndPlay(EEndPlayReason::Type Why)
 }
 void ASBHero::SetKnight(ASBKnight* NewKnight) { Knight=NewKnight; if (!Knight) bLockedOn=false; }
 void ASBHero::SetDummy(ASBTrainingDummy* NewDummy) {Dummy=NewDummy;}
-void ASBHero::ToggleLock() { if (Health>0 && IsValid(Knight) && Knight->Health>0) bLockedOn=!bLockedOn; }
+void ASBHero::ToggleLock()
+{
+    if (Health<=0 || !IsValid(Knight) || Knight->Health<=0) return;
+    bLockedOn=!bLockedOn;
+    LockViewOffset=FVector2D::ZeroVector;
+}
+void ASBHero::CycleTargetPart()
+{
+    if (!bLockedOn || !IsValid(Knight) || Health<=0 || !InputEnabled()) return;
+    constexpr ESBArmorPart Order[]={ESBArmorPart::SwordArm,ESBArmorPart::Shield,ESBArmorPart::Knee,ESBArmorPart::Body};
+    int32 Current=0;
+    while (Current<3 && Order[Current]!=SelectedPart) ++Current;
+    for (int32 Offset=1;Offset<=4;++Offset)
+    {
+        const ESBArmorPart Next=Order[(Current+Offset)%4];
+        if (!Knight->IsPartBroken(Next)) {SelectedPart=Next;break;}
+    }
+}
 void ASBHero::SetMoveStick(FVector2D V) { Stick=V.GetClampedToMaxSize(1.f); }
 void ASBHero::SetSprinting(bool Held) { bSprintHeld=Held; if (!Held) bNeedsSprintRecovery=false; }
 void ASBHero::MoveInput(const FInputActionValue& V) { SetMoveStick(V.Get<FVector2D>()); }
 void ASBHero::ResetLookCapture()
 {
     CaptureGuardUntil=GetWorld()->GetTimeSeconds()+.25;
-    bFirstLookAfterCapture=true;
 }
 void ASBHero::ClearControlInput()
 {
@@ -151,15 +170,24 @@ void ASBHero::DisableInput(APlayerController* PC)
 }
 void ASBHero::LookInput(const FInputActionValue& V)
 {
-    if (bLockedOn || !Controller || Health<=0 || !FApp::HasFocus()) return;
+    // AppKit also observes pointer movement over other applications.
+    if (!Controller || !InputEnabled() || Health<=0 || !FApp::HasFocus()) return;
     const FVector2D Delta=V.Get<FVector2D>();
     // A captured viewport can send a desktop-to-center warp. Keep ordinary first motion,
     // even on the first frame. The guard applies only around initial capture/refocus.
-    const bool bGuard=bFirstLookAfterCapture || GetWorld()->GetTimeSeconds()<CaptureGuardUntil;
-    bFirstLookAfterCapture=false;
-    if (bGuard && Delta.GetAbsMax()>32.f) return;
+    if (GetWorld()->GetTimeSeconds()<CaptureGuardUntil && Delta.GetAbsMax()>6.f) return;
+    const double YawDelta = Delta.X * 1.25;
+    const double PitchDelta = Delta.Y * 1.15;
+    if (bLockedOn)
+    {
+        // Allow the player to frame the target while the boom continues following it.
+        LockViewOffset.X = FMath::Clamp(LockViewOffset.X + YawDelta, -28.0, 28.0);
+        LockViewOffset.Y = FMath::Clamp(LockViewOffset.Y + PitchDelta, -16.0, 16.0);
+        return;
+    }
     FRotator Rot=Controller->GetControlRotation();
-    Rot.Yaw+=Delta.X*1.25; Rot.Pitch=FMath::ClampAngle(Rot.Pitch+Delta.Y*1.15,-62.f,38.f);
+    Rot.Yaw+=YawDelta;
+    Rot.Pitch=FMath::ClampAngle(Rot.Pitch+PitchDelta,-62.f,38.f);
     Controller->SetControlRotation(Rot);
 }
 FVector ASBHero::WishDirection() const
@@ -260,21 +288,32 @@ void ASBHero::ExecuteAction(ESBHeroAction Requested,const FVector& Direction)
         PlayCue(TEXT("Shield"),.26f,1.32f);
         return;
     }
-    if (bLockedOn && Knight) Face(Knight->GetActorLocation()-GetActorLocation(),180);
+    if (bLockedOn && Knight)
+    {
+        const FVector ToBody=Knight->GetActorLocation()-GetActorLocation();
+        const FVector ToPart=Knight->PartPoint(SelectedPart)-GetActorLocation();
+        // An extended shield may already overlap our sword hand. Face through the guard
+        // instead of turning away from the knight and lunging backwards through its edge.
+        const bool bAimAtPlate=ToPart.SizeSquared2D()>FMath::Square(35.f) && FVector::DotProduct(ToPart.GetSafeNormal2D(),ToBody.GetSafeNormal2D())>0;
+        Face(bAimAtPlate ? ToPart : ToBody,180);
+    }
     else Face(Direction,180);
+    const bool bLowCut=bLockedOn && SelectedPart==ESBArmorPart::Knee && IsValid(Knight) && !Knight->bKneeBroken;
     if (Requested==ESBHeroAction::OathCut)
     {
         bOathReady=false;
-        BeginAction(Requested,TEXT("OathCut"),W.Duration);
+        BeginAction(Requested,bLowCut ? TEXT("LowOathCut") : TEXT("OathCut"),W.Duration);
         PlayCue(TEXT("Parry"),.72f,.76f);
     }
     else
     {
         const bool bSecond=Requested==ESBHeroAction::ReturnCut;
-        BeginAction(Requested,bSecond ? TEXT("ReturnCut"):TEXT("Cut"),W.Duration);
+        const FName Clip=bSecond ? (bLowCut ? TEXT("LowReturnCut") : TEXT("ReturnCut")) :
+            (bLowCut ? TEXT("LowCut") : TEXT("Cut"));
+        BeginAction(Requested,Clip,W.Duration);
         PlayCue(TEXT("Swing"),.68f,bSecond ? .88f:1.06f);
     }
-    Combat->StartCut();
+    Combat->StartCut(bLockedOn,SelectedPart);
 }
 void ASBHero::FinishAction()
 {
@@ -301,17 +340,31 @@ void ASBHero::ReceivePattern(float Damage,bool bSword)
 void ASBHero::ImpactCamera(float Strength) { Shake=FMath::Max(Shake,Strength); }
 void ASBHero::UpdateCamera(float Dt)
 {
-    if (!FApp::HasFocus()) ResetLookCapture();
+    if (UGameViewportClient* Client=GetWorld()->GetGameViewport(); Client && Client->Viewport)
+    {
+        const bool bCaptured=FApp::HasFocus() && Client->Viewport->HasMouseCapture();
+        if (bCaptured != bHadMouseCapture)
+        {
+            ResetLookCapture();
+            bHadMouseCapture=bCaptured;
+        }
+    }
     if (IsValid(Knight) && Knight->Health<=0) bLockedOn=false;
+    if (IsValid(Knight) && Knight->IsPartBroken(SelectedPart)) SelectedPart=ESBArmorPart::Body;
     if (bLockedOn && Controller && Knight)
     {
         FVector Focus=Knight->GetActorLocation()+FVector(0,0,27);
         FRotator Desired=(Focus-(GetActorLocation()+FVector(0,0,48))).Rotation();
         // An oblique view keeps the weapon arm visible when both fighters are within striking distance.
         const float Near = 1.f-FMath::Clamp((FVector::Dist2D(Focus,GetActorLocation())-82.f)/265.f,0.f,1.f);
-        Desired.Yaw += 37.f*Near;
-        Desired.Pitch = FMath::Clamp(Desired.Pitch*.42f-9.f-5.f*Near,-22.f,9.f);
-        Controller->SetControlRotation(FMath::RInterpTo(Controller->GetControlRotation(),Desired,Dt,17));
+        Desired.Yaw += 37.f*Near + LockViewOffset.X;
+        Desired.Pitch = FMath::Clamp(Desired.Pitch*.42f-9.f-5.f*Near,-22.f,9.f) + LockViewOffset.Y;
+        const FRotator Current=Controller->GetControlRotation();
+        const FRotator Follow=FMath::RInterpTo(Current,Desired,Dt,17.f);
+        // A shield charge can cross the player in a single step. Keep the horizon readable
+        // as the target passes the shoulder, then pick it up again on the far side.
+        const float MaxTurn=Knight->Action==ESBKnightAction::ShieldCharge ? 165.f : 300.f;
+        Controller->SetControlRotation(FMath::RInterpConstantTo(Current,Follow,Dt,MaxTurn));
     }
     Shake=FMath::Max(0.f,Shake-Dt*3.6f);
     const float T=GetWorld()->TimeSeconds;

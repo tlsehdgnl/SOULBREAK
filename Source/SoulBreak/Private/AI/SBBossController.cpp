@@ -13,7 +13,7 @@
 
 USBSelectAttackTask::USBSelectAttackTask()
 {
-    NodeName=TEXT("Read arm and phase, select and resolve an attack");
+    NodeName=TEXT("Choose and resolve a pattern from range, phase and surviving armor");
     INIT_TASK_NODE_NOTIFY_FLAGS();
 }
 EBTNodeResult::Type USBSelectAttackTask::ExecuteTask(UBehaviorTreeComponent& Owner,uint8*)
@@ -44,6 +44,8 @@ void USBSelectAttackTask::ConfigureDuelTree(UBehaviorTree* Tree,UBlackboardData*
     Key(TEXT("Target"),NewObject<UBlackboardKeyType_Object>(BB));
     Key(TEXT("Phase"),NewObject<UBlackboardKeyType_Int>(BB));
     Key(TEXT("ArmIntact"),NewObject<UBlackboardKeyType_Bool>(BB));
+    Key(TEXT("ShieldIntact"),NewObject<UBlackboardKeyType_Bool>(BB));
+    Key(TEXT("KneeIntact"),NewObject<UBlackboardKeyType_Bool>(BB));
     Key(TEXT("Busy"),NewObject<UBlackboardKeyType_Bool>(BB));
     Key(TEXT("Distance"),NewObject<UBlackboardKeyType_Float>(BB));
     Tree->BlackboardAsset=BB;
@@ -72,5 +74,7 @@ void ASBBossController::Sync(const ASBKnight& K)
     BB->SetValueAsFloat(TEXT("Distance"),FVector::Dist2D(K.GetActorLocation(),K.GetHero()->GetActorLocation()));
     BB->SetValueAsInt(TEXT("Phase"),K.Phase);
     BB->SetValueAsBool(TEXT("ArmIntact"),!K.bArmBroken);
+    BB->SetValueAsBool(TEXT("ShieldIntact"),!K.bShieldBroken);
+    BB->SetValueAsBool(TEXT("KneeIntact"),!K.bKneeBroken);
     BB->SetValueAsBool(TEXT("Busy"),K.Action!=ESBKnightAction::Chase && K.Action!=ESBKnightAction::Idle);
 }

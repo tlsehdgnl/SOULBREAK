@@ -4,21 +4,47 @@
   "configuration": "Shipping",
   "bundle": "Builds/Shipping/Mac/SoulBreak-Mac-Shipping.app",
   "bundle_identifier": "com.YourCompany.SoulBreak",
+  "CFBundleVersion": "58902052.0.22",
   "signature": "ad hoc, codesign --verify --deep --strict passed",
-  "gameplay_review": "Shipping default level rendered in standalone app using Metal offscreen with -DUMPMOVIE. Automated combat and controller audit ran on Development.",
+  "gameplay_review": "Metal offscreen, -DUMPMOVIE, packaged default map, no map override",
   "verified_frame": "Builds/Review/Shipping/first-playable-frame.png",
+  "verified_frame_sha256": "99cc542a70ad7b075511c1f8d5774a954c73756a21d72d86335cc4066b388fe6",
+  "scope": "Default map startup, rendered frame, normal AppKit quit, ad-hoc signature and ZIP round trip. This shipping smoke injected no mouse events.",
+  "release_change": "Mouse look",
+  "startup_view_observation": "Two separate unfocused offscreen launches with no injected pointer events both opened facing the knight at the east altar.",
+  "repeat_launch": {
+    "two_independent_cold_launches_face_knight": true,
+    "binary_sha256": "13f357f6a132d8b3616f7648e6d0a3b2ad4d24086cd6dd77cca986ed19eeb5c2",
+    "observation": "Both unassisted cold-start frames face the knight, with the altar and stained-glass window centered. Reviewed side by side against the original expected framing.",
+    "startup_frame_sha256": [
+      "8f0769d66ddb0ba5572388b9ce66deebfb280ac284ac1f1857f3db93c5ed9647",
+      "99cc542a70ad7b075511c1f8d5774a954c73756a21d72d86335cc4066b388fe6"
+    ],
+    "exit_codes": [
+      0,
+      0
+    ]
+  },
+  "render_resolution": [
+    1600,
+    900
+  ],
+  "captured_movie_frame": "MovieFrame00029.png",
   "sha256": {
-    "Contents/MacOS/SoulBreak-Mac-Shipping": "ffaa8eda0bfd0dd0ed24fb2fdeb8e7ea3732da0ec4e3983c16d5f509e3363ba3",
-    "Contents/UE/SoulBreak/Content/Paks/SoulBreak-Mac.pak": "b6cdfca0662cb6d547b4a2f9ef24d5bfecca7951f541fcdb6198c13592f767d2",
-    "Contents/UE/SoulBreak/Content/Paks/SoulBreak-Mac.ucas": "ed3ebb37523efa02c789fa6a0923093b55cc81c4d60d9942c06ad04a030b62cd",
-    "Contents/UE/SoulBreak/Content/Paks/SoulBreak-Mac.utoc": "1ead128aa5a2ce0a2a2f08eaa4b2a40cb5ba740f2df13ce6e60678c0386df14d",
-    "Contents/UE/SoulBreak/Content/Paks/global.ucas": "8b138f9155eea72bc640360983b1d515054a090111b044bcaf40a136ba6997c4",
-    "Contents/UE/SoulBreak/Content/Paks/global.utoc": "8a18918b721361103817d1003686f5efe32fe71b7587db46c874967bea5ca799",
+    "Contents/MacOS/SoulBreak-Mac-Shipping": "13f357f6a132d8b3616f7648e6d0a3b2ad4d24086cd6dd77cca986ed19eeb5c2",
+    "Contents/UE/SoulBreak/Content/Paks/SoulBreak-Mac.pak": "1775b60829bb6afebb83770b2924ea342363cabab0d791ba67ba81b2a43fc0a2",
+    "Contents/UE/SoulBreak/Content/Paks/SoulBreak-Mac.ucas": "6ad3c2733760806d289c0582fd695412971b5271ccbf381d6b6ea2fc2bdbe823",
+    "Contents/UE/SoulBreak/Content/Paks/SoulBreak-Mac.utoc": "41b163177ce87deee0feddef9697e7b7adc85a5d0c68873f3817a839ad0c2832",
+    "Contents/UE/SoulBreak/Content/Paks/global.ucas": "20491b8325500325302ef9240671fef75bbcb9f5f4f622d534ca05fbddda4a7a",
+    "Contents/UE/SoulBreak/Content/Paks/global.utoc": "f3bfa2961bbe876bbb679b6333ba269b13c82612f0722981aee520f760e0993f",
     "Contents/UE/SoulBreak/Content/Splash/Splash.bmp": "3da40bac64131abd76f175539a38d43957e29b534f4e941157902cc8a396d44f"
   },
   "normal_appkit_quit_exit_code": 0,
-  "distribution_zip_bytes": 370409258,
-  "distribution_zip_sha256": "e357eb4494a438eb740292785c5bb8e9e73c505f8fee711953ba3a6b43761c82",
+  "quit_method": "AppKit NSRunningApplication.terminate targeted by PID",
+  "distribution_zip_bytes": 430188413,
+  "distribution_zip_sha256": "f26f0900817ff4e325ee31b69922d123877c27a85b887e104089d63fe1f647fd",
   "distribution_zip": "Builds/Shipping/SoulBreak-macOS-arm64.zip",
-  "extracted_zip_codesign": "passed"
+  "extracted_zip_codesign": "passed",
+  "restored_bundle_regular_files_and_links_verified": 31,
+  "date": "2026-11-12"
 }

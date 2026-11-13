@@ -1,6 +1,13 @@
-"""Import generated art and sound and author L_Cathedral through Unreal Editor Python."""
+"""Import chapel art and author L_Cathedral through Unreal Editor Python.
+
+Bake source with Blender build_cathedral.py and Python build_chapel_surfaces.py.
+Run UnrealEditor-Cmd with the Python/EditorScriptingUtilities plugins, legacy FBX
+(Interchange.FeatureFlags.Import.FBX=False) and -ExecutePythonScript=<this file>.
+Pass -ini:Engine:[/Script/NavigationSystem.NavigationSystemV1]:bWaitForAsyncLoadingBeforeBuildingNavigationAutomatically=False
+when regenerating headlessly so static Recast tiles are built before the map is saved.
+-SBSkipUnchangedSound and -SBReuseLevelTextures can shorten geometry-only passes.
+"""
 import json
-import math
 import os
 from pathlib import Path
 import unreal as u
@@ -33,20 +40,28 @@ def sound_import():
         if wav.stem=='S_Chapel':
             prop(sound,'looping',True);save(sound)
 if '-sbskipunchangedsound' not in u.SystemLibrary.get_command_line().lower():sound_import()
-skills={'Argillite','Tufa','Chasing','Damask','PotGlass'}
+scan_families=('Paving','Choir','Masonry','Dressed')
+families={'Argillite','Tufa','Chasing','Damask','PotGlass',*scan_families}
 packed={};normals={}
 def texfile(name,setting=None,linear=False):
+    if '-sbreuseleveltextures' in u.SystemLibrary.get_command_line().lower() and assets.does_asset_exist(env+'/'+name):
+        return assets.load_asset(env+'/'+name)
     t=imported(source/(name+'.png'),env)
     if setting is not None:prop(t,'compression_settings',setting)
     if linear:prop(t,'srgb',False)
     save(t);return t
-for family in sorted(skills):
+for family in sorted(families):
     packed[family]=texfile('T_'+family+'_M',u.TextureCompressionSettings.TC_MASKS,True)
     normals[family]=texfile('T_'+family+'_N',u.TextureCompressionSettings.TC_NORMALMAP,True)
+colors={family:texfile('T_'+family+'_C') for family in scan_families}
+neutral=texfile('T_Neutral_C')
 projected=texfile('T_ClerestoryLight',u.TextureCompressionSettings.TC_MASKS,True)
 incense=texfile('T_IncenseRay',u.TextureCompressionSettings.TC_MASKS,True)
 icon_texture=texfile('T_SeveredOath')
+saints_texture=texfile('T_Votaries')
+fire_texture=texfile('T_CenserFire')
 settings=u.FbxImportUI();settings.automated_import_should_detect_type=False;settings.import_mesh=True;settings.import_as_skeletal=False;settings.mesh_type_to_import=u.FBXImportType.FBXIT_STATIC_MESH
+settings.reset_to_fbx_on_material_conflict=True
 settings.import_materials=False;settings.import_textures=False
 opts=settings.static_mesh_import_data
 opts.combine_meshes=True;opts.auto_generate_collision=False;opts.generate_lightmap_u_vs=False
@@ -81,9 +96,11 @@ M=u.MaterialProperty;S=u.MaterialSamplerType
 mat=master('M_Chapel')
 color=param(u.MaterialExpressionVectorParameter,'Albedo',u.LinearColor(.2,.2,.2,1),-1200,-360)
 surface=sample(packed['Tufa'],S.SAMPLERTYPE_MASKS,-1200,-160,'Surface')
+stone_color=sample(neutral,S.SAMPLERTYPE_COLOR,-1200,-620,'StoneColor')
 relief=sample(normals['Tufa'],S.SAMPLERTYPE_NORMAL,-1200,110,'Relief')
 output(relief,M.MP_NORMAL)
-albedo=binary(u.MaterialExpressionMultiply,color,surface,-880,-340,ob='R')
+stone_tint=binary(u.MaterialExpressionMultiply,color,stone_color,-930,-440)
+albedo=binary(u.MaterialExpressionMultiply,stone_tint,surface,-680,-340,ob='R')
 rough=param(u.MaterialExpressionScalarParameter,'Roughness',.72,-920,140)
 output(binary(u.MaterialExpressionMultiply,rough,surface,-560,120,ob='G'),M.MP_ROUGHNESS)
 output(surface,M.MP_AMBIENT_OCCLUSION,'B')
@@ -106,44 +123,80 @@ bias=node(u.MaterialExpressionAdd,-640,1270);conn(wave,bias,'A');prop(bias,'cons
 em=binary(u.MaterialExpressionMultiply,binary(u.MaterialExpressionMultiply,base,glow,-570,1000),bias,-340,1000)
 transmitted=binary(u.MaterialExpressionMultiply,projection,floor,-210,665)
 scatter=binary(u.MaterialExpressionMultiply,transmitted,albedo,20,660)
-output(binary(u.MaterialExpressionAdd,em,factor(scatter,1.7,210,660),415,880),M.MP_EMISSIVE_COLOR)
+output(binary(u.MaterialExpressionAdd,em,factor(scatter,.63,210,660),415,880),M.MP_EMISSIVE_COLOR)
 lib.recompile_material(mat);save(mat)
 stone_master=mat
 
 mat=master('M_Icon')
 icon=sample(icon_texture,S.SAMPLERTYPE_COLOR,-560,-190);output(icon,M.MP_BASE_COLOR)
-output(factor(icon,.34,-235,25),M.MP_EMISSIVE_COLOR)
-r=node(u.MaterialExpressionConstant,-245,150);prop(r,'r',.52);output(r,M.MP_ROUGHNESS)
+output(factor(icon,.03,-235,25),M.MP_EMISSIVE_COLOR)
+r=node(u.MaterialExpressionConstant,-245,150);prop(r,'r',.78);output(r,M.MP_ROUGHNESS)
 lib.recompile_material(mat);save(mat)
 icon_material=mat
 
 mat=master('M_Incense',True)
 mask=sample(incense,S.SAMPLERTYPE_MASKS,-550,90)
-opacity=factor(mask,.063,-230,100,'R');output(opacity,M.MP_OPACITY)
-tint=param(u.MaterialExpressionVectorParameter,'Airlight',u.LinearColor(.14,.31,.49,1),-555,-170);output(tint,M.MP_EMISSIVE_COLOR)
+opacity=factor(mask,.070,-230,100,'R');output(opacity,M.MP_OPACITY)
+tint=param(u.MaterialExpressionVectorParameter,'Airlight',u.LinearColor(.29,.34,.40,1),-555,-170);output(tint,M.MP_EMISSIVE_COLOR)
 lib.recompile_material(mat);save(mat)
 beam_material=mat
+
+mat=master('M_VotaryGlass')
+panel=sample(saints_texture,S.SAMPLERTYPE_COLOR,-520,-120)
+output(factor(panel,.33,-265,-140),M.MP_BASE_COLOR)
+output(factor(panel,.76,-265,55),M.MP_EMISSIVE_COLOR)
+r=node(u.MaterialExpressionConstant,-250,200);prop(r,'r',.59);output(r,M.MP_ROUGHNESS)
+lib.recompile_material(mat);save(mat);pane_material=mat
+
+mat=master('M_CenserFlame',True)
+uv=node(u.MaterialExpressionTextureCoordinate,-800,-240)
+clock=node(u.MaterialExpressionTime,-800,40)
+atlas=node(u.MaterialExpressionCustom,-465,-215)
+prop(atlas,'description','Censer flame atlas, independent candle phases')
+prop(atlas,'output_type',u.CustomMaterialOutputType.CMOT_FLOAT2)
+inputs=[]
+for label in ('UV','Seconds'):
+    entry=u.CustomInput();prop(entry,'input_name',label);inputs.append(entry)
+prop(atlas,'inputs',inputs)
+# Mesh UVs store an integer phase followed by the local quad coordinate.
+prop(atlas,'code',"float frame=floor(frac(Seconds*.91+floor(UV.x)/16.)*16.); return (float2(fmod(frame,4.),floor(frame/4.))+frac(UV))/4.;")
+conn(uv,atlas,'UV');conn(clock,atlas,'Seconds')
+fire=sample(fire_texture,S.SAMPLERTYPE_COLOR,-190,-180);conn(atlas,fire,'UVs')
+output(factor(fire,1.75,20,-120),M.MP_EMISSIVE_COLOR)
+lib.recompile_material(mat);save(mat);flame_material=mat
 
 palette=json.loads((source/'chapel_materials.json').read_text())
 slots=list(mesh.get_editor_property('static_materials'))
 def material_family(name):
+    if name=='Pavement':return 'Paving'
+    if name=='ChoirPaving':return 'Choir'
+    if name in ('Ashlar','Sootstone','VaultWeb'):return 'Masonry'
+    if name in ('Chalk','Carving','Parchment','Purbeck','Sculpture','Tracery'):return 'Dressed'
+    if name=='Memorial':return 'Chasing'
+    if name=='Oak':return 'Damask'
+
     if name.startswith('Slab') or name in ('Deep','Mortar'):return 'Argillite'
     if name.endswith('Glass') or name in ('Flame','Fire','Wick','Coal','Rune'):return 'PotGlass'
     if name in ('Oxblood','Velvet','ClothGold'):return 'Damask'
     if name in ('Gold','Burnished','Iron','Oxide','Tracery'):return 'Chasing'
     return 'Tufa'
+special={'Icon':icon_material,'Incense':beam_material,'SaintGlass':pane_material,'FlameSheet':flame_material}
+actual_names={str(slot.material_slot_name) for slot in slots}
+if not special.keys() <= actual_names:
+    raise RuntimeError('FBX failed to supply chapel art slots: '+str(special.keys()-actual_names))
 for slot in slots:
     name=str(slot.material_slot_name)
     if name not in palette:raise RuntimeError('Unknown FBX material slot '+repr(name))
-    if name in ('Icon','Incense'):
-        slot.material_interface=icon_material if name=='Icon' else beam_material;continue
+    if name in special:
+        slot.material_interface=special[name];continue
     rgb,r,m,g=palette[name];inst_name='MI_Chapel_'+name
     inst=assets.load_asset(env+'/'+inst_name) if assets.does_asset_exist(env+'/'+inst_name) else tools.create_asset(inst_name,env,u.MaterialInstanceConstant,u.MaterialInstanceConstantFactoryNew())
     lib.set_material_instance_parent(inst,stone_master)
     lib.set_material_instance_vector_parameter_value(inst,'Albedo',u.LinearColor(*rgb,1))
-    for k,v in [('Roughness',r),('Metallic',m),('Glow',g),('Flicker',.14 if name in ('Wick','Fire','Coal') else 0.),('Floor',1. if name.startswith('Slab') else 0.)]:
+    for k,v in [('Roughness',r),('Metallic',m),('Glow',g),('Flicker',.14 if name in ('Wick','Fire','Coal') else 0.),('Floor',1. if name in ('Pavement','ChoirPaving','Memorial') else 0.)]:
         lib.set_material_instance_scalar_parameter_value(inst,k,v)
     family=material_family(name)
+    lib.set_material_instance_texture_parameter_value(inst,'StoneColor',colors.get(family,neutral))
     lib.set_material_instance_texture_parameter_value(inst,'Surface',packed[family])
     lib.set_material_instance_texture_parameter_value(inst,'Relief',normals[family])
     lib.update_material_instance(inst);save(inst);slot.material_interface=inst
@@ -179,7 +232,14 @@ for s in (-1,1):
     blocker('Nave boundary Y '+str(s),(0,s*1037,220),(21.4,.65,4.6),cube)
 for x in (-480,480):
     for y in (-670,670):blocker('Pier collision '+str((x,y)),(x,y,264),(1.35,1.35,5.3),cylinder)
-start=spawn(u.PlayerStart,'Pilgrim | Arrival',(-800,0,101))
+# Clerestory piers cast bands of soft window shadow. These six simple forms
+# have no collision and cost considerably less than shadowing the entire nave.
+for pier_x in (-1060,-657,-221,221,657,1060):
+    a=spawn(u.StaticMeshActor,'Clerestory shadow pier', (pier_x,-1047,456))
+    c=a.static_mesh_component;c.set_static_mesh(cube);c.set_collision_profile_name('NoCollision')
+    a.set_actor_scale3d(u.Vector(.93,.27,8.92))
+    c.set_cast_shadow(True);prop(c,'cast_hidden_shadow',True);a.set_actor_hidden_in_game(True)
+start=spawn(u.PlayerStart,'Pilgrim | Arrival',(-740,0,101))
 nav=spawn(u.NavMeshBoundsVolume,'Walkable nave bounds',(0,0,150))
 nav.set_actor_scale3d(u.Vector(11,11,2.8))
 u.log('NAV BOUNDS '+str(nav.get_actor_bounds(False)))
@@ -187,27 +247,27 @@ u.log('NAV BOUNDS '+str(nav.get_actor_bounds(False)))
 sky=spawn(u.SkyLight,'Blue hour | Nave fill',(0,0,790)).light_component
 sky.set_mobility(u.ComponentMobility.MOVABLE)
 prop(sky,'source_type',u.SkyLightSourceType.SLS_SPECIFIED_CUBEMAP)
-sky.set_cubemap(u.load_object(None,'/Engine/MapTemplates/Sky/DaylightAmbientCubemap.DaylightAmbientCubemap'));sky.set_intensity(.22)
-key=spawn(u.DirectionalLight,'Clerestory | Silver light',(-250,-840,890),68,-43).light_component
-key.set_mobility(u.ComponentMobility.MOVABLE);key.set_light_color(u.LinearColor(.53,.69,1));key.set_intensity(1.45)
-prop(key,'light_source_angle',2.8)
+sky.set_cubemap(u.load_object(None,'/Engine/MapTemplates/Sky/DaylightAmbientCubemap.DaylightAmbientCubemap'));sky.set_intensity(.225)
+key=spawn(u.DirectionalLight,'Clerestory | Silver light',(-250,-840,890),67,-38).light_component
+key.set_mobility(u.ComponentMobility.MOVABLE);key.set_light_color(u.LinearColor(.66,.77,.93));key.set_intensity(1.14)
+prop(key,'light_source_angle',4.2)
 def point(label,xyz,r,intensity,color,shadow=False):
     c=spawn(u.PointLight,label,xyz).light_component;c.set_mobility(u.ComponentMobility.MOVABLE);prop(c,'intensity_units',u.LightUnits.LUMENS);c.set_intensity(intensity);c.set_attenuation_radius(r);c.set_light_color(u.LinearColor(*color));prop(c,'cast_shadows',shadow);prop(c,'source_radius',22)
 for s in (-1,1):
-    for y in (-272,272):point('Ember bowl',(s*961,y,158),450,315,(1,.32,.080))
-    for x in (-680,680):point('Side chapel brazier',(x,s*943,135),460,270,(1,.34,.093))
-point('Reliquary cyan rim',(911,-84,420),415,232,(.18,.39,1))
-point('Reliquary enamel',(945,35,203),345,195,(1,.62,.20))
-point('Crossing gold',(112,385,318),730,620,(1,.61,.26))
+    for y in (-272,272):point('Ember bowl',(s*(1116 if s>0 else 961),y,150),470,175,(1,.33,.10))
+    for x in (-680,680):point('Side chapel brazier',(x,s*943,135),430,155,(1,.34,.093))
+point('Apse clerestory',(1100,-68,480),395,135,(.42,.57,.72))
+point('Altar votives',(943,48,165),326,33,(1,.61,.36))
+point('Crossing reflected candlelight',(135,413,306),708,432,(1,.68,.44))
 # A cold arcing window source separates the dark steel breastplate from the far masonry.
-point('Nave moon rim',(432,-430,480),710,800,(.34,.64,1))
-point('Pilgrim fill',(-555,290,303),664,386,(.52,.69,.96))
+point('Nave moon rim',(399,-427,471),735,670,(.46,.70,.95))
+point('Pilgrim fill',(-468,217,279),790,642,(.83,.81,.77))
 fog=spawn(u.ExponentialHeightFog,'Chapel dust',(0,0,-24)).get_component_by_class(u.ExponentialHeightFogComponent)
 prop(fog,'fog_density',.028);prop(fog,'fog_height_falloff',.26);prop(fog,'fog_inscattering_luminance',u.LinearColor(.037,.065,.103,1));prop(fog,'start_distance',125)
 grade=spawn(u.PostProcessVolume,'Nave | candle and moon tonemapping',(0,0,32))
 prop(grade,'unbound',True)
 pp=grade.get_editor_property('settings')
-for key,value in [('bloom_intensity',.12),('bloom_threshold',1.8),('vignette_intensity',.26)]:
+for key,value in [('bloom_intensity',.12),('bloom_threshold',1.8),('vignette_intensity',.245),('ambient_occlusion_intensity',.82),('ambient_occlusion_radius',95.)]:
     prop(pp,'override_'+key,True);prop(pp,key,value)
 prop(grade,'settings',pp)
 ambient=spawn(u.AmbientSound,'Nocturne in D | Chapel ambience',(0,0,0)).audio_component

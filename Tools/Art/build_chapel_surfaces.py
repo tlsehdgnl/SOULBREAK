@@ -1,5 +1,6 @@
 """Author the cathedral's relief, microsurface, projected glass and triptych textures."""
 from pathlib import Path
+from shutil import copyfile
 import struct,sys,zlib
 import numpy as np
 
@@ -20,8 +21,8 @@ def noise(band):
     v=np.fft.ifft2(np.fft.fft2(rng.normal(size=(N,N)))*np.exp(-(frequency/band)**2)).real
     return v/v.std()
 def maps(name,relief,albedo,rough,occlusion,steepness):
-    dx=(np.roll(relief,-1,1)-np.roll(relief,1,1))*steepness
-    dy=(np.roll(relief,1,0)-np.roll(relief,-1,0))*steepness
+    dx=(np.roll(relief,-1,1)-np.roll(relief,1,1))*steepness*.60
+    dy=(np.roll(relief,1,0)-np.roll(relief,-1,0))*steepness*.60
     n=np.stack([-dx,-dy,np.ones_like(dx)],-1);n/=np.linalg.norm(n,axis=-1)[:,:,None]
     png('T_'+name+'_N',n*.5+.5);png('T_'+name+'_M',np.stack([albedo,rough,occlusion],-1))
 
@@ -70,86 +71,11 @@ xx=(X/(N-1)-.5)*2; yy=Y/(N-1);rays=np.exp(-xx**2*6)*np.clip(1-xx**2,0,1)*(.62+.1
 beam=rays*np.sin(np.pi*yy)**1.4*(1-.44*yy)*(.94+.04*coarse)
 png('T_IncenseRay',beam)
 
-# A 2:3 hand-drawn icon, rendered in stained enamel. Coordinates are in design pixels.
-H,W=960,640
-y,x=np.mgrid[:H,:W]
-cloud=np.fft.ifft2(np.fft.fft2(rng.normal(size=(H,W)))*np.exp(-((np.fft.fftfreq(H)[:,None]*45)**2+(np.fft.fftfreq(W)[None,:]*45)**2))).real
-cloud=(cloud-cloud.mean())/cloud.std()
-cells=np.zeros((H,W,3))
-grid=60;nx=W//grid+5;ny=H//grid+5
-px=rng.uniform(.15,.85,(ny,nx));py=rng.uniform(.15,.85,(ny,nx));base=rng.random((ny,nx))
-nearest=np.ones((H,W))*1e8;second=nearest.copy(); IDs=np.zeros((H,W),int)
-ix=x//grid+2;iy=y//grid+2
-for dy in (-1,0,1):
-    for dx in (-1,0,1):
-        gx=ix+dx;gy=iy+dy;d=((gx-2+px[gy,gx])*grid-x)**2+((gy-2+py[gy,gx])*grid-y)**2
-        win=d<nearest;second=np.minimum(second,np.where(win,nearest,d));nearest=np.minimum(nearest,d);IDs=np.where(win,gy*nx+gx,IDs)
-tone=base.flatten()[IDs];lead=np.clip((np.sqrt(second)-np.sqrt(nearest))*.33,.09,1.)
-for i,(a,b) in enumerate([(.032,.09),(.070,.235),(.102,.278)]):
-    cells[:,:,i]=(a+(b-a)*tone)*(lead*.85+.15)
-img=cells
-ink=np.array((.029,.044,.051));gilt=np.array((.69,.436,.145));ivory=np.array((.82,.77,.54))
-def poly(pts,c):
-    ax=np.array(pts);a,b=np.maximum(0,np.floor(ax.min(0)).astype(int));d,e=np.minimum([W-1,H-1],np.ceil(ax.max(0)).astype(int))
-    if a>d or b>e:return
-    xx=x[b:e+1,a:d+1]+.5;yy=y[b:e+1,a:d+1]+.5;mask=np.zeros(xx.shape,bool)
-    for (p,q),(r,s) in zip(pts,pts[1:]+pts[:1]):
-        if q!=s:mask^=((yy>q)!=(yy>s))&(xx<(r-p)*(yy-q)/(s-q)+p)
-    img[b:e+1,a:d+1][mask]=c
-def line(a,b,w,c):
-    px,py=a;qx,qy=b;vx=qx-px;vy=qy-py;d=np.hypot(vx,vy)
-    if d<=0:return
-    u=-vy*w/(2*d);v=vx*w/(2*d);poly([(px+u,py+v),(qx+u,qy+v),(qx-u,qy-v),(px-u,py-v)],c)
-def outline(pts,c,w=3,edge=ink):
-    poly(pts,c)
-    for a,b in zip(pts,pts[1:]+pts[:1]):line(a,b,w,edge)
-def ring(cx,cy,r,w,c,n=80):
-    pts=[(cx+r*np.cos(j*2*np.pi/n),cy+r*np.sin(j*2*np.pi/n)) for j in range(n)]
-    for a,b in zip(pts,pts[1:]+pts[:1]):line(a,b,w,c)
-# Cloisonné border, head of the chapel's sunburst, hand-cut chips in its halo.
-for inset,width,col in [(8,13,ink),(21,6,gilt),(32,4,(.24,.17,.09)),(42,2,gilt)]:
-    pts=[(inset,inset),(W-inset,inset),(W-inset,H-inset),(inset,H-inset)]
-    for a,b in zip(pts,pts[1:]+pts[:1]):line(a,b,width,col)
-for sy in (85,875):
-    for j in range(17):
-        a=63+j*32;outline([(a,sy-10),(a+11,sy),(a,sy+10),(a-11,sy)],gilt if j%2==0 else (.15,.33,.33),2)
-for j in range(48):
-    a=j*2*np.pi/48;ca,sa=np.cos(a),np.sin(a)
-    outer=177 if j%2==0 else 157
-    outline([(320+ca*112,334+sa*112),(320+ca*outer-sa*4,334+sa*outer+ca*4),(320+ca*(outer+19),334+sa*(outer+19)),(320+ca*126+sa*5,334+sa*126-ca*5)],(.68,.38,.111) if j%3 else (.40,.23,.103),2)
-for rr,ww,col in [(112,6,ink),(108,4,gilt),(88,4,ivory),(82,2,gilt),(154,2,gilt)]:
-    ring(320,334,rr,ww,col)
-# The votaries mirror each other, in turquoise and oxblood. Each points to a broken blade.
-for sign in (-1,1):
-    def P(u,v):return (320+sign*u,v)
-    cloak=(.085,.24,.272) if sign<0 else (.29,.075,.108)
-    for rr,ww,col in [(49,6,ink),(45,3,gilt),(52,2,ivory)]:ring(*P(184,511),rr,ww,col)
-    parts=[
-        ([(174,542),(214,558),(245,698),(258,798),(115,802),(130,739),(143,658)],cloak),
-        ([(164,549),(193,553),(170,636),(121,720),(130,663)],(.19,.39,.37) if sign<0 else (.52,.176,.164)),
-        ([(206,573),(226,607),(240,710),(203,679)],(.065,.11,.14)),
-        ([(172,474),(193,473),(216,503),(205,545),(173,551),(145,526),(149,500)],(.079,.12,.155)),
-        ([(149,505),(168,488),(193,495),(182,506),(160,514)],ivory),
-        ([(153,516),(178,509),(174,535),(162,539)],(.58,.40,.23)),
-        ([(148,593),(165,606),(133,642),(87,621),(95,607),(126,619)],(.58,.45,.253)),
-        ([(89,621),(75,610),(66,593),(72,591),(83,604),(75,583),(80,579),(93,605),(101,609)],ivory)]
-    for pts,c in parts:outline([P(u,v) for u,v in pts],c,3)
-    for k in range(5):line(P(177+k*8,622+k*5),P(130+k*22,780-k*3),2.3,gilt)
-# The long axial sword is interrupted by a broken tessera; the blade doubles as a cathedral lancet.
-parts=[([(312,746),(329,752),(336,828),(321,851),(305,824)],gilt), ([(308,625),(333,624),(330,766),(309,766)],(.22,.16,.09)),
-       ([(238,601),(266,607),(306,619),(320,607),(335,619),(374,607),(403,599),(384,629),(343,650),(320,641),(300,651),(257,628)],gilt),
-       ([(300,606),(301,466),(329,432),(342,420),(339,600),(322,625)],(.67,.71,.61)),
-       ([(321,616),(321,470),(337,440),(339,600)],(.29,.50,.50)),
-       ([(297,445),(301,331),(322,166),(345,332),(339,397),(315,422)],(.79,.80,.66)),
-       ([(322,166),(345,332),(339,397),(317,419),(325,356)],(.33,.57,.58))]
-for pts,c in parts:outline(pts,c,3)
-for j in range(6):line((310,662+j*14),(330,657+j*14),2,gilt)
-for pts in [[(356,407),(375,385),(365,416),(349,429)],[(281,453),(266,475),(268,446),(285,432)]]:outline(pts,(.67,.29,.087),2)
-# A few geometric stars and dotted glass striae keep large flat regions from reading as printed paper.
-for _ in range(135):
-    xx=rng.integers(49,W-48);yy=rng.integers(111,H-111)
-    if np.mean(img[yy,xx])>.24:continue
-    d=rng.uniform(1,3);poly([(xx-d,yy),(xx,yy-d*1.6),(xx+d,yy),(xx,yy+d*1.6)],(.31,.334,.245))
-patina=np.clip(.88+.055*cloud+.026*rng.normal(size=(H,W)),.68,1.1)
-img*=patina[:,:,None];png('T_SeveredOath',np.clip(img,0,1)**(1/2.2))
-print('Wrote five microsurface pairs, stained-light projection, incense mask and altar icon.')
+# The reredos uses the gilt-wood illustration at its native aspect.
+copyfile(Path(__file__).with_name('SeveredOath.png'), out / 'T_SeveredOath.png')
+from chapel_scans import bake_stone
+bake_stone(out)
+copyfile(Path(__file__).with_name('VotaryGlass.png'), out / 'T_Votaries.png')
+from chapel_fire import bake_fire
+bake_fire(out)
+print('Wrote chapel surface maps, projected light, votary glass, altar and censer atlas.')

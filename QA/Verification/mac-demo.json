@@ -1,96 +1,319 @@
 {
-  "date": "2026-11-03",
-  "video_sha256": "a258c90b241b56ac2904e687b587aa58f43ea7c0aeacde9a576f4474398aeff1",
+  "date": "2026-11-12",
   "engine": "5.8.4",
-  "executable_sha256": "498cfe6d557f20775e214a3c3d91e07dad04dcc3be4f7edeefc8dba0b610e8a2",
+  "build": "0.3.0 Mac Development",
+  "executable_sha256": "a2dee97871ee897b120fcb4ccfc9d7e9037dcbaff271ad47e76451c597d33450",
+  "cooked_utoc_sha256": "41b163177ce87deee0feddef9697e7b7adc85a5d0c68873f3817a839ad0c2832",
+  "cooked_ucas_sha256": "6ad3c2733760806d289c0582fd695412971b5271ccbf381d6b6ea2fc2bdbe823",
   "video": "Builds/Review/Demo/SoulBreak-Demo.mp4",
-  "duration_s": 70.0,
+  "video_sha256": "530b9ac190c7eca731137c7950cddbf5b50edbf1381396170fd0e3a5b922f96c",
+  "duration_s": 78.04,
+  "frames": 1873,
   "video_format": "1280x720 H.264 24fps",
   "audio_format": "stereo AAC 48000 Hz",
-  "audio_mean_db": -22.8,
-  "audio_peak_db": -4.4,
-  "capture": "Development Mac package via Metal, offscreen viewport screenshots and captured master audio. A fixed 24Hz input driver operates the real player actions, damage/defense and level restart. No health overrides in demo mode.",
+  "audio_mean_db": -21.8,
+  "audio_peak_db": -2.3,
+  "capture": "Real offscreen Metal frames and master audio from the packaged Development executable. A fixed-step 24 Hz replay calls the player controls, lock selection, attacks, parry and dodge. Player/boss health and break thresholds use normal gameplay.",
+  "first_occurrence_s": {
+    "engaged": 2.583,
+    "charge": 3.125,
+    "armbreak": 5.917,
+    "stomp": 7.125,
+    "bellwave": 10.583,
+    "shieldbreak": 16.375,
+    "shoulder": 17.583,
+    "kneebreak": 25.25,
+    "victory": 49.084
+  },
   "events": [
     {
       "attempt": 1,
       "event": "engaged",
-      "time_s": 2.708
+      "time_s": 2.583,
+      "frame": 61
     },
     {
       "attempt": 1,
-      "event": "parry",
-      "time_s": 4.292
+      "event": "charge",
+      "time_s": 3.125,
+      "frame": 74
     },
     {
       "attempt": 1,
       "event": "armbreak",
-      "time_s": 7.125
+      "time_s": 5.917,
+      "frame": 141
     },
     {
       "attempt": 1,
       "event": "stomp",
-      "time_s": 8.583
+      "time_s": 7.125,
+      "frame": 170
+    },
+    {
+      "attempt": 1,
+      "event": "bellwave",
+      "time_s": 10.583,
+      "frame": 253
     },
     {
       "attempt": 1,
       "event": "stomp",
-      "time_s": 13.375
+      "time_s": 14.292,
+      "frame": 342
+    },
+    {
+      "attempt": 1,
+      "event": "shieldbreak",
+      "time_s": 16.375,
+      "frame": 392
+    },
+    {
+      "attempt": 1,
+      "event": "shoulder",
+      "time_s": 17.583,
+      "frame": 421
     },
     {
       "attempt": 1,
       "event": "stomp",
-      "time_s": 18.167
+      "time_s": 18.708,
+      "frame": 448
+    },
+    {
+      "attempt": 1,
+      "event": "shoulder",
+      "time_s": 20.875,
+      "frame": 500
+    },
+    {
+      "attempt": 1,
+      "event": "shoulder",
+      "time_s": 22.0,
+      "frame": 527
     },
     {
       "attempt": 1,
       "event": "stomp",
-      "time_s": 22.958
+      "time_s": 23.125,
+      "frame": 554
     },
     {
       "attempt": 1,
-      "event": "stomp",
-      "time_s": 27.75
+      "event": "kneebreak",
+      "time_s": 25.25,
+      "frame": 605
     },
     {
       "attempt": 1,
-      "event": "stomp",
-      "time_s": 32.541
+      "event": "shoulder",
+      "time_s": 26.458,
+      "frame": 634
     },
     {
       "attempt": 1,
-      "event": "stomp",
-      "time_s": 37.333
+      "event": "shoulder",
+      "time_s": 27.583,
+      "frame": 661
     },
     {
       "attempt": 1,
-      "event": "stomp",
-      "time_s": 42.125
+      "event": "shoulder",
+      "time_s": 28.708,
+      "frame": 688
     },
     {
       "attempt": 1,
-      "event": "stomp",
-      "time_s": 46.917
+      "event": "shoulder",
+      "time_s": 29.833,
+      "frame": 715
     },
     {
       "attempt": 1,
-      "event": "stomp",
-      "time_s": 51.709
+      "event": "bellwave",
+      "time_s": 30.958,
+      "frame": 742
     },
     {
       "attempt": 1,
-      "event": "stomp",
-      "time_s": 56.501
+      "event": "shoulder",
+      "time_s": 33.333,
+      "frame": 799
     },
     {
       "attempt": 1,
-      "event": "stomp",
-      "time_s": 61.292
+      "event": "shoulder",
+      "time_s": 34.458,
+      "frame": 826
     },
     {
       "attempt": 1,
+      "event": "shoulder",
+      "time_s": 35.583,
+      "frame": 853
+    },
+    {
+      "attempt": 1,
+      "event": "bellwave",
+      "time_s": 36.708,
+      "frame": 880
+    },
+    {
+      "attempt": 1,
+      "event": "shoulder",
+      "time_s": 39.083,
+      "frame": 937
+    },
+    {
+      "attempt": 1,
+      "event": "shoulder",
+      "time_s": 40.208,
+      "frame": 964
+    },
+    {
+      "attempt": 1,
+      "event": "shoulder",
+      "time_s": 41.333,
+      "frame": 991
+    },
+    {
+      "attempt": 1,
+      "event": "bellwave",
+      "time_s": 42.458,
+      "frame": 1018
+    },
+    {
+      "attempt": 1,
+      "event": "shoulder",
+      "time_s": 44.834,
+      "frame": 1075
+    },
+    {
+      "attempt": 1,
+      "event": "shoulder",
+      "time_s": 45.959,
+      "frame": 1102
+    },
+    {
+      "attempt": 1,
+      "event": "shoulder",
+      "time_s": 47.084,
+      "frame": 1129
+    },
+    {
+      "attempt": 1,
+      "event": "bellwave",
+      "time_s": 48.209,
+      "frame": 1156
+    },
+    {
+      "attempt": 1,
+      "event": "victory",
+      "time_s": 49.084,
+      "frame": 1177
+    },
+    {
+      "attempt": 2,
+      "event": "engaged",
+      "time_s": 52.667,
+      "frame": 1263
+    },
+    {
+      "attempt": 2,
+      "event": "charge",
+      "time_s": 53.209,
+      "frame": 1276
+    },
+    {
+      "attempt": 2,
+      "event": "armbreak",
+      "time_s": 56.001,
+      "frame": 1343
+    },
+    {
+      "attempt": 2,
       "event": "stomp",
-      "time_s": 66.084
+      "time_s": 57.209,
+      "frame": 1372
+    },
+    {
+      "attempt": 2,
+      "event": "bellwave",
+      "time_s": 60.667,
+      "frame": 1455
+    },
+    {
+      "attempt": 2,
+      "event": "stomp",
+      "time_s": 64.376,
+      "frame": 1544
+    },
+    {
+      "attempt": 2,
+      "event": "shieldbreak",
+      "time_s": 66.459,
+      "frame": 1594
+    },
+    {
+      "attempt": 2,
+      "event": "shoulder",
+      "time_s": 67.667,
+      "frame": 1623
+    },
+    {
+      "attempt": 2,
+      "event": "stomp",
+      "time_s": 68.792,
+      "frame": 1650
+    },
+    {
+      "attempt": 2,
+      "event": "shoulder",
+      "time_s": 70.959,
+      "frame": 1702
+    },
+    {
+      "attempt": 2,
+      "event": "shoulder",
+      "time_s": 72.084,
+      "frame": 1729
+    },
+    {
+      "attempt": 2,
+      "event": "stomp",
+      "time_s": 73.209,
+      "frame": 1756
+    },
+    {
+      "attempt": 2,
+      "event": "kneebreak",
+      "time_s": 75.333,
+      "frame": 1807
+    },
+    {
+      "attempt": 2,
+      "event": "shoulder",
+      "time_s": 76.542,
+      "frame": 1836
+    },
+    {
+      "attempt": 2,
+      "event": "shoulder",
+      "time_s": 77.667,
+      "frame": 1863
     }
   ],
-  "exit_note": "The Development app exited normally. The clip records combat through 70 seconds, ending with the boss at 10 health. Victory and restart are covered separately by the packaged integration audit."
+  "exit_note": "The Development demo exited normally. Video and audio streams both decoded through the end. See events.csv for all damage, break and retry events.",
+  "reviewed_stills": {
+    "engaged": "Builds/Review/Demo/engaged.png",
+    "charge": "Builds/Review/Demo/charge.png",
+    "armbreak": "Builds/Review/Demo/armbreak.png",
+    "stomp": "Builds/Review/Demo/stomp.png",
+    "bellwave": "Builds/Review/Demo/bellwave.png",
+    "shieldbreak": "Builds/Review/Demo/shieldbreak.png",
+    "shoulder": "Builds/Review/Demo/shoulder.png",
+    "kneebreak": "Builds/Review/Demo/kneebreak.png",
+    "victory": "Builds/Review/Demo/victory.png"
+  },
+  "visual_review": "Inspected the distinct detached sword, shield and knee plate and their HUD states, charge path, ring wave, and the first victory screen. The first fight is won, a normal retry starts the second fight, and capture ends during that fight. Defensive play in this capture centers on dodge; dedicated parry and Oath Cut checks are covered by the combat audit."
 }

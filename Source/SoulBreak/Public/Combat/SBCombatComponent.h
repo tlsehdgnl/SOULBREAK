@@ -15,11 +15,13 @@ class SOULBREAK_API USBCombatComponent : public UActorComponent
 {
     GENERATED_BODY()
 public:
-    void StartCut();
+    void StartCut(bool bLocked,ESBArmorPart Part);
     void Cancel();
     void TraceCut(ASBHero& Hero, ASBKnight* Knight, ASBTrainingDummy* Dummy, const FSBAttackTiming& Timing, bool bReverse, float Previous, float Now);
     UPROPERTY(BlueprintReadOnly) int32 AttackId = 0;
 private:
     bool bBodyPending = false;
     bool bResolved = false;
+    bool bTargeted = false;
+    ESBArmorPart SelectedPart = ESBArmorPart::SwordArm;
 };

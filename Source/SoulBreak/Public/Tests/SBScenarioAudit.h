@@ -12,6 +12,9 @@ public:
     ASBScenarioAudit();
     virtual void Tick(float Dt) override;
 private:
+    void TickViewportLook(class APlayerController& PC, class ASBGameMode& Game);
+    FRotator LookBaseline = FRotator::ZeroRotator;
+    int32 LookSamples = 0;
     int32 Step = 0;
     float Clock = 0;
     FVector StartPosition = FVector::ZeroVector;

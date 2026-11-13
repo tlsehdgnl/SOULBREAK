@@ -23,8 +23,8 @@ private:
     void Encounter(const ASBGameMode& Game);
     void Guide();
     void Result(const ASBGameMode& Game);
-    float ArmNoticeUntil = -1;
-    bool bSawBreak = false;
+    float BreakNoticeUntil = -1.f;
+    int32 DisplayedBreakCount = 0;
     float PreviousBossHP = 400.f;
     float TrailingBossHP = 400.f;
     float DamageHoldUntil = 0.f;

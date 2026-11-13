@@ -18,6 +18,29 @@ const FLinearColor Gold(.88f,.65f,.30f,1);
 const FLinearColor Muted(.69f,.75f,.74f,1);
 const FLinearColor Aqua(.24f,.79f,.76f,1);
 const FLinearColor Blood(.79f,.18f,.16f,1);
+constexpr ESBArmorPart ArmorParts[] = {ESBArmorPart::SwordArm, ESBArmorPart::Shield, ESBArmorPart::Knee};
+
+const TCHAR* ArmorName(ESBArmorPart Part)
+{
+    switch (Part)
+    {
+    case ESBArmorPart::SwordArm: return TEXT("오른팔 갑주");
+    case ESBArmorPart::Shield: return TEXT("방패");
+    case ESBArmorPart::Knee: return TEXT("무릎 갑주");
+    default: return TEXT("몸통");
+    }
+}
+
+const TCHAR* BreakEffect(ESBArmorPart Part)
+{
+    switch (Part)
+    {
+    case ESBArmorPart::SwordArm: return TEXT("기사가 검을 놓쳤습니다");
+    case ESBArmorPart::Shield: return TEXT("방패 돌진을 봉쇄했습니다");
+    case ESBArmorPart::Knee: return TEXT("발구르기를 봉쇄했습니다");
+    default: return TEXT("");
+    }
+}
 }
 
 void ASBCombatHUD::Box(float X,float Y,float Width,float Height,FLinearColor Color)
@@ -160,19 +183,35 @@ void ASBCombatHUD::Encounter(const ASBGameMode& Game)
     Box(C-225,78,450*FMath::Clamp(Boss.Health/400.f,0.f,1.f),7,Blood);
     Box(C-1,78,2,7,FLinearColor(.02,.025,.034,.72));
     Diamond(C-234,81,4,Gold); Diamond(C+234,81,4,Gold);
-    Wash(W-219,29,189,58,Clear,Ink);
-    Label(Boss.bArmBroken ? TEXT("오른팔  /  파괴됨") : TEXT("오른팔  /  검 갑주"),W-187,35,16,Boss.bArmBroken ? Gold : Paper);
-    Meter(W-185,65,139,4,Boss.ArmHealth,90,Gold);
-    if (Boss.bArmBroken && !bSawBreak)
+    const bool Locked = Game.Hero->bLockedOn;
+    Wash(W-224,26,200,Locked ? 162.f : 136.f,Clear,Ink);
+    for (int32 I=0; I<UE_ARRAY_COUNT(ArmorParts); ++I)
     {
-        bSawBreak=true; ArmNoticeUntil=GetWorld()->GetTimeSeconds()+2.3f;
+        const ESBArmorPart Part = ArmorParts[I];
+        const float Y=31.f+42.f*I;
+        const bool Broken=Boss.IsPartBroken(Part);
+        const bool Selected=Locked && Game.Hero->SelectedPart==Part;
+        if (Selected) Diamond(W-192,Y+12,4,Gold);
+        Label(ArmorName(Part),W-180,Y,16,Selected ? Gold : Paper);
+        if (Broken) Label(TEXT("파괴"),W-81,Y+1,14,Muted);
+        Meter(W-180,Y+25,134,3,Boss.GetPartHealth(Part),Boss.GetPartMaxHealth(Part),Selected ? Gold : Muted);
     }
-    if (GetWorld()->GetTimeSeconds()<ArmNoticeUntil)
+    if (Locked)
     {
-        Wash(C-160,H*.26f,160,58,Clear,Ink);
-        Wash(C,H*.26f,160,58,Ink,Clear);
-        Label(TEXT("A R M O R   B R O K E N"),C,H*.26f+5,15,Gold,true);
-        Label(TEXT("검을 든 오른팔 파괴"),C,H*.26f+25,21,Paper,true);
+        Label(FString::Printf(TEXT("F  부위 변경   ·   %s"),ArmorName(Game.Hero->SelectedPart)),W-183,158,14,Gold);
+    }
+    if (Boss.BreakCount>DisplayedBreakCount)
+    {
+        DisplayedBreakCount=Boss.BreakCount;
+        BreakNoticeUntil=Now+2.15f;
+    }
+    if (Now<BreakNoticeUntil)
+    {
+        const float Y=H*.22f;
+        Wash(C-155,Y,155,56,Clear,Ink);
+        Wash(C,Y,155,56,Ink,Clear);
+        Label(FString::Printf(TEXT("%s 파괴"),ArmorName(Boss.LastBrokenPart)),C,Y+2,21,Gold,true);
+        Label(BreakEffect(Boss.LastBrokenPart),C,Y+29,15,Paper,true);
     }
     if (Boss.TelegraphDuration > 0 && Boss.PatternElapsed < Boss.TelegraphDuration && !Boss.PatternLabel.IsEmpty())
     {
@@ -181,16 +220,20 @@ void ASBCombatHUD::Encounter(const ASBGameMode& Game)
         Label(Boss.PatternLabel,C,H-95,19,Paper,true);
         Meter(C-90,H-64,180,4,Boss.PatternElapsed,Boss.TelegraphDuration,Gold);
     }
-    if (Game.Hero->bLockedOn)
+    else if (Boss.IsPunishWindow())
+    {
+        Wash(C-123,H-92,123,34,Clear,Ink);
+        Wash(C,H-92,123,34,Ink,Clear);
+        Label(TEXT("자세가 무너짐  ·  갑주 노출"),C,H-86,17,Gold,true);
+    }
+    if (Locked)
     {
         FVector2D Pt;
-        if (PlayerOwner->ProjectWorldLocationToScreen(Boss.GetActorLocation()+FVector(0,0,32),Pt))
-            Diamond(Pt.X/Unit,Pt.Y/Unit,7,Paper);
-        if (!Boss.bArmBroken && Game.Hero->GetDistanceTo(Game.Knight)<340 &&
-            PlayerOwner->ProjectWorldLocationToScreen(Boss.ArmPoint(),Pt))
+        if (PlayerOwner->ProjectWorldLocationToScreen(Boss.PartPoint(Game.Hero->SelectedPart),Pt))
         {
             float X=Pt.X/Unit,Y=Pt.Y/Unit;
-            Line(X-8,Y-2,X-4,Y-6,Gold,1.5f); Line(X+4,Y+6,X+8,Y+2,Gold,1.5f);
+            Line(X-9,Y-2,X-4,Y-7,Gold,1.5f); Line(X+4,Y+7,X+9,Y+2,Gold,1.5f);
+            Box(X-1,Y-1,2,2,Paper);
         }
     }
     if (Game.Hero->bOathReady)
@@ -214,9 +257,9 @@ void ASBCombatHUD::Guide()
     Line(X,Y,X+408,Y,Gold);
     Label(TEXT("S O U L   B R E A K     /     P A U S E"),X,Y+15,16,Gold);
     Label(TEXT("순례자의 전투 수첩"),X,Y+46,34,Paper);
-    const TCHAR* Keys[]={TEXT("W A S D  /  마우스"),TEXT("Shift  /  Space"),TEXT("좌클릭  ×  2"),TEXT("우클릭"),TEXT("Tab  /  E")};
-    const TCHAR* Acts[]={TEXT("이동  /  시점"),TEXT("달리기  /  회피"),TEXT("검 베기  /  연계 공격"),TEXT("패링  ·  검이 닿기 직전에"),TEXT("기사 고정  /  패링 후 서약 절단")};
-    for (int32 I=0;I<5;++I)
+    const TCHAR* Keys[]={TEXT("W A S D  /  마우스"),TEXT("Shift  /  Space"),TEXT("좌클릭  ×  2"),TEXT("우클릭  /  E"),TEXT("Tab  /  F")};
+    const TCHAR* Acts[]={TEXT("이동  /  시점"),TEXT("달리기  /  회피"),TEXT("검 베기  /  연계 공격"),TEXT("패링  /  성공 후 서약 절단"),TEXT("기사 고정  /  공격할 부위 변경")};
+    for (int32 I=0;I<UE_ARRAY_COUNT(Keys);++I)
     {
         const float Row=Y+109+I*34;
         Label(Keys[I],X,Row,18,Gold); Label(Acts[I],X+180,Row,18,Paper);
@@ -237,6 +280,10 @@ void ASBCombatHUD::Result(const ASBGameMode& Game)
     Label(Win ? TEXT("O A T H   S E V E R E D") : TEXT("P I L G R I M   F A L L E N"),C,Y+15,17,Gold,true);
     Label(Win ? TEXT("기사의 맹세를 끊었다") : TEXT("순례자가 쓰러졌다"),C,Y+45,36,Paper,true);
     const int32 Sec=FMath::FloorToInt(Game.FightSeconds);
-    Label(FString::Printf(TEXT("%02d:%02d     /     오른팔 %s"),Sec/60,Sec%60,Game.Knight->bArmBroken ? TEXT("파괴") : TEXT("온전")),C,Y+105,17,Muted,true);
+    TArray<FString> Broken;
+    for (ESBArmorPart Part : ArmorParts)
+        if (Game.Knight->IsPartBroken(Part)) Broken.Add(ArmorName(Part));
+    const FString Parts=Broken.IsEmpty() ? TEXT("갑주 온전") : FString::Join(Broken,TEXT(" · "))+TEXT(" 파괴");
+    Label(FString::Printf(TEXT("%02d:%02d     /     %s"),Sec/60,Sec%60,*Parts),C,Y+105,17,Muted,true);
     Label(TEXT("R   다시 도전      Q   게임 종료"),C,Y+156,20,Gold,true);
 }

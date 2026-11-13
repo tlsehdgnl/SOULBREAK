@@ -3,9 +3,13 @@
   "failure": "",
   "victory_retries": 10,
   "defeat_retries": 10,
-  "max_reload_to_input_seconds": 0.08954,
+  "max_reload_to_input_seconds": 0.08244,
   "method": "PlayerController simulated keys; teleports and injected incoming/phase/lethal hits are deterministic test fixtures. AI, hit resolver, stamina, map reload, move component and Enhanced Input are live.",
   "checks": [
+    {
+      "check": "knight skeletal mesh exposes separate shield and knee break bones",
+      "passed": true
+    },
     {
       "check": "first normal mouse input rotated camera during startup; oversized recenter warp was discarded",
       "passed": true
@@ -55,7 +59,7 @@
       "passed": true
     },
     {
-      "check": "reload 01 fresh HP arm phase AI input; 0.090s to W movement",
+      "check": "reload 01 fresh HP arm phase AI input; 0.081s to W movement",
       "passed": true
     },
     {
@@ -71,79 +75,107 @@
       "passed": true
     },
     {
-      "check": "reload 02 fresh HP arm phase AI input; 0.084s to W movement",
+      "check": "reload 02 fresh HP arm phase AI input; 0.080s to W movement",
       "passed": true
     },
     {
-      "check": "reload 03 fresh HP arm phase AI input; 0.085s to W movement",
+      "check": "held D cleared a locked charge lane; knight travelled past and entered exposed recovery",
       "passed": true
     },
     {
-      "check": "reload 04 fresh HP arm phase AI input; 0.085s to W movement",
+      "check": "F selected shield; actual LMB counter dealt 20 health and 30 shield durability without double contact",
       "passed": true
     },
     {
-      "check": "reload 05 fresh HP arm phase AI input; 0.085s to W movement",
+      "check": "next F selected knee; live low sword arc hit only the knee and body HP once",
       "passed": true
     },
     {
-      "check": "reload 06 fresh HP arm phase AI input; 0.084s to W movement",
+      "check": "shield and kneecap bones were hidden after breaks while the hand and shin remained visible",
       "passed": true
     },
     {
-      "check": "reload 07 fresh HP arm phase AI input; 0.086s to W movement",
+      "check": "all three plates shattered; pursuit slowed to 150 and expanding wave hit a stationary target for 24 once",
       "passed": true
     },
     {
-      "check": "reload 08 fresh HP arm phase AI input; 0.083s to W movement",
+      "check": "after all breaks AI used shoulder check and wave; hugging the inner circle avoided wave damage; F skipped destroyed plates",
       "passed": true
     },
     {
-      "check": "reload 09 fresh HP arm phase AI input; 0.085s to W movement",
+      "check": "reload 03 fresh HP arm phase AI input; 0.079s to W movement",
       "passed": true
     },
     {
-      "check": "reload 10 fresh HP arm phase AI input; 0.083s to W movement",
+      "check": "standing in the lane took one 28-damage shield charge and granted no armor bonus",
       "passed": true
     },
     {
-      "check": "reload 11 fresh HP arm phase AI input; 0.085s to W movement",
+      "check": "reload 04 fresh HP arm phase AI input; 0.081s to W movement",
       "passed": true
     },
     {
-      "check": "reload 12 fresh HP arm phase AI input; 0.082s to W movement",
+      "check": "reload 05 fresh HP arm phase AI input; 0.082s to W movement",
       "passed": true
     },
     {
-      "check": "reload 13 fresh HP arm phase AI input; 0.082s to W movement",
+      "check": "reload 06 fresh HP arm phase AI input; 0.079s to W movement",
       "passed": true
     },
     {
-      "check": "reload 14 fresh HP arm phase AI input; 0.087s to W movement",
+      "check": "reload 07 fresh HP arm phase AI input; 0.081s to W movement",
       "passed": true
     },
     {
-      "check": "reload 15 fresh HP arm phase AI input; 0.081s to W movement",
+      "check": "reload 08 fresh HP arm phase AI input; 0.082s to W movement",
       "passed": true
     },
     {
-      "check": "reload 16 fresh HP arm phase AI input; 0.086s to W movement",
+      "check": "reload 09 fresh HP arm phase AI input; 0.080s to W movement",
       "passed": true
     },
     {
-      "check": "reload 17 fresh HP arm phase AI input; 0.082s to W movement",
+      "check": "reload 10 fresh HP arm phase AI input; 0.078s to W movement",
       "passed": true
     },
     {
-      "check": "reload 18 fresh HP arm phase AI input; 0.084s to W movement",
+      "check": "reload 11 fresh HP arm phase AI input; 0.078s to W movement",
       "passed": true
     },
     {
-      "check": "reload 19 fresh HP arm phase AI input; 0.083s to W movement",
+      "check": "reload 12 fresh HP arm phase AI input; 0.077s to W movement",
       "passed": true
     },
     {
-      "check": "reload 20 fresh HP arm phase AI input; 0.082s to W movement",
+      "check": "reload 13 fresh HP arm phase AI input; 0.078s to W movement",
+      "passed": true
+    },
+    {
+      "check": "reload 14 fresh HP arm phase AI input; 0.076s to W movement",
+      "passed": true
+    },
+    {
+      "check": "reload 15 fresh HP arm phase AI input; 0.077s to W movement",
+      "passed": true
+    },
+    {
+      "check": "reload 16 fresh HP arm phase AI input; 0.076s to W movement",
+      "passed": true
+    },
+    {
+      "check": "reload 17 fresh HP arm phase AI input; 0.081s to W movement",
+      "passed": true
+    },
+    {
+      "check": "reload 18 fresh HP arm phase AI input; 0.079s to W movement",
+      "passed": true
+    },
+    {
+      "check": "reload 19 fresh HP arm phase AI input; 0.080s to W movement",
+      "passed": true
+    },
+    {
+      "check": "reload 20 fresh HP arm phase AI input; 0.078s to W movement",
       "passed": true
     }
   ],
@@ -177,8 +209,9 @@
       "sim_ms": 16.667
     }
   ],
-  "configuration": "Mac Development Editor (-game)",
+  "engine": "5.8.4",
+  "configuration": "Mac Editor standalone game",
+  "date": "2026-11-12",
   "fixed_fps": 60,
-  "rendering": "NullRHI",
-  "engine": "5.8.4"
+  "rendering": "NullRHI"
 }

@@ -13,6 +13,7 @@
 #include "Misc/CommandLine.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
+#include "ProfilingDebugging/TraceAuxiliary.h"
 #include "Scalability.h"
 #include "UnrealClient.h"
 
@@ -77,10 +78,10 @@ void ASBReviewDriver::BeginPlay()
         }
         else
         {
-            Append(OutputDirectory / TEXT("events.csv"), TEXT("game_seconds,frame,attempt,event,player_health,boss_health,arm_health"));
+            Append(OutputDirectory / TEXT("events.csv"), TEXT("game_seconds,frame,attempt,event,player_health,boss_health,arm_health,shield_health,knee_health"));
             if (bVideo)
             {
-                UAudioMixerBlueprintLibrary::StartRecordingOutput(this,80);
+                UAudioMixerBlueprintLibrary::StartRecordingOutput(this,90);
                 Session.AudioStarted = true;
             }
         }
@@ -111,7 +112,7 @@ void ASBReviewDriver::Tick(float Dt)
     else
     {
         Capture(*Mode, *Mode->Hero, *Mode->Knight);
-        if (Session.Elapsed >= 70.f) Finish();
+        if (Session.Elapsed >= 78.f) Finish();
         else if ((Mode->Encounter == ESBEncounter::Victory || Mode->Encounter == ESBEncounter::Defeat) && Mode->OutcomeSeconds > 3.f)
             Mode->Retry();
     }
@@ -140,10 +141,34 @@ void ASBReviewDriver::Drive(ASBGameMode& Game, ASBHero& Hero, ASBKnight& Knight)
     const FVector Facing = Knight.GetActorForwardVector();
     const FVector Flank = Knight.GetActorRightVector();
     const float Distance = FVector::Dist2D(Hero.GetActorLocation(), Knight.GetActorLocation());
-    const FVector Goal = Knight.GetActorLocation() + 81.f*Facing + (Knight.bArmBroken ? 17.f : 51.f)*Flank;
-    MoveToward(Hero, Goal, 55.f);
+    const ESBArmorPart Aim= !Knight.bArmBroken ? ESBArmorPart::SwordArm :
+        !Knight.bShieldBroken ? ESBArmorPart::Shield : !Knight.bKneeBroken ? ESBArmorPart::Knee : ESBArmorPart::Body;
+    if (Hero.SelectedPart!=Aim) Hero.CycleTargetPart();
+    const FVector Goal=Knight.PartPoint(Aim)+Facing*65.f;
+    MoveToward(Hero,Goal,40.f);
+    if (Knight.Action==ESBKnightAction::ShieldCharge &&
+        Knight.PatternElapsed<Knight.CombatData->ShieldCharge.Windup+Knight.CombatData->ShieldCharge.Active)
+    {
+        const FVector ToHero=Hero.GetActorLocation()-Knight.GetActorLocation();
+        const float Offset=FVector::DotProduct(ToHero,Flank);
+        if (FMath::Abs(Offset)<105.f)
+        {
+            const FVector Out=Offset<0 ? -Flank : Flank;
+            MoveToward(Hero,Hero.GetActorLocation()+Out*320.f,1.f);
+        }
+        else Hero.SetMoveStick(FVector2D::ZeroVector);
+        return;
+    }
+    if (Knight.Action==ESBKnightAction::BellWave)
+    {
+        // Slip inside the expanding front. Once there, use real attacks while the bell is sounding.
+        MoveToward(Hero,Knight.GetActorLocation(),35.f);
+        if (Distance<106.f && (Hero.Action==ESBHeroAction::Cut || Hero.Stamina>28.f))
+            Hero.TryAttack();
+        return;
+    }
     const bool Sword = Knight.Action == ESBKnightAction::SwordSweep;
-    const bool Bash = Knight.Action == ESBKnightAction::Bash;
+    const bool Bash = Knight.Action == ESBKnightAction::Bash || Knight.Action==ESBKnightAction::ShoulderCheck;
     const bool Stomp = Knight.Action == ESBKnightAction::Stomp;
     const float ToImpact = Knight.TelegraphDuration - Knight.PatternElapsed;
     if (!Knight.bArmBroken)
@@ -199,7 +224,8 @@ void ASBReviewDriver::Drive(ASBGameMode& Game, ASBHero& Hero, ASBKnight& Knight)
         return;
     }
     if (Distance > 130.f || !Knight.bEncounterActive) return;
-    const float RecoveryLeft = Bash ? Knight.CombatData->Bash.Duration()-Knight.PatternElapsed :
+    const float RecoveryLeft = Knight.Action==ESBKnightAction::ShoulderCheck ? Knight.CombatData->ShoulderCheck.Duration()-Knight.PatternElapsed :
+        Bash ? Knight.CombatData->Bash.Duration()-Knight.PatternElapsed :
         Stomp ? Knight.CombatData->Stomp.Duration()-Knight.PatternElapsed :
         Sword ? Knight.CombatData->Sweep.Duration()-Knight.PatternElapsed : 2.f;
     if (Hero.bOathReady && RecoveryLeft > .58f) Hero.TryOathCut();
@@ -216,14 +242,33 @@ void ASBReviewDriver::Capture(const ASBGameMode& Game, const ASBHero& Hero, cons
     if (Game.Encounter==ESBEncounter::Fighting && LastPhase != Knight.Phase) { Event = Knight.Phase==1 ? TEXT("engaged") : TEXT("phase2"); LastPhase=Knight.Phase; }
     if (Hero.SuccessfulParries > LastParries) { Event = TEXT("parry"); LastParries=Hero.SuccessfulParries; }
     if (FMath::RoundToInt(Knight.Health) != LastBossHP) { if (Event.IsEmpty()) Event=TEXT("swordhit"); LastBossHP=FMath::RoundToInt(Knight.Health); }
-    if (Knight.bArmBroken && !bLastBroken) { Event=TEXT("armbreak"); bLastBroken=true; }
-    if (Knight.Action==ESBKnightAction::Stomp && Knight.PatternElapsed > .42 && LastPatternGeneration != Knight.AttackGeneration)
-    { Event=TEXT("stomp"); LastPatternGeneration=Knight.AttackGeneration; }
+    if (Knight.BreakCount>LastBreakCount)
+    {
+        switch (Knight.LastBrokenPart)
+        {
+        case ESBArmorPart::Shield: Event=TEXT("shieldbreak"); break;
+        case ESBArmorPart::Knee: Event=TEXT("kneebreak"); break;
+        default: Event=TEXT("armbreak"); break;
+        }
+        LastBreakCount=Knight.BreakCount;
+    }
+    if (Event.IsEmpty() && Knight.PatternElapsed>.20f && LastPatternGeneration!=Knight.AttackGeneration)
+    {
+        switch (Knight.Action)
+        {
+        case ESBKnightAction::Stomp: Event=TEXT("stomp"); break;
+        case ESBKnightAction::ShieldCharge: Event=TEXT("charge"); break;
+        case ESBKnightAction::BellWave: Event=TEXT("bellwave"); break;
+        case ESBKnightAction::ShoulderCheck: Event=TEXT("shoulder"); break;
+        default: break;
+        }
+        if (!Event.IsEmpty()) LastPatternGeneration=Knight.AttackGeneration;
+    }
     if (!bResultSeen && (Game.Encounter == ESBEncounter::Victory || Game.Encounter == ESBEncounter::Defeat))
     { Event=Game.Encounter==ESBEncounter::Victory ? TEXT("victory") : TEXT("defeat"); bResultSeen=true; }
     if (!Event.IsEmpty())
-        Append(OutputDirectory / TEXT("events.csv"), FString::Printf(TEXT("%.3f,%d,%d,%s,%.1f,%.1f,%.1f"),
-            Session.Elapsed, Session.Frame, Session.Attempt, *Event, Hero.Health, Knight.Health, Knight.ArmHealth));
+        Append(OutputDirectory / TEXT("events.csv"), FString::Printf(TEXT("%.3f,%d,%d,%s,%.1f,%.1f,%.1f,%.1f,%.1f"),
+            Session.Elapsed,Session.Frame,Session.Attempt,*Event,Hero.Health,Knight.Health,Knight.ArmHealth,Knight.ShieldHealth,Knight.KneeHealth));
     if (bVideo)
         FScreenshotRequest::RequestScreenshot(OutputDirectory / FString::Printf(TEXT("Frames/frame_%05d.png"),Session.Frame),false,false);
     else if (!Event.IsEmpty() || Session.Elapsed >= Session.NextSnapshot)
@@ -265,6 +310,7 @@ void ASBReviewDriver::Measure(double Now, float WallFrameMs, ASBKnight& Knight)
 
 void ASBReviewDriver::Finish()
 {
+    if (bPerf) FTraceAuxiliary::Stop();
     if (Session.AudioStarted)
     {
         UAudioMixerBlueprintLibrary::StopRecordingOutput(this,EAudioRecordingExportType::WavFile,TEXT("game"),OutputDirectory);

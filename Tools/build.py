@@ -43,7 +43,8 @@ def main():
         with (report/'index.json').open(encoding='utf-8-sig') as f:
             results = json.load(f)
         required = {'SoulBreak.Combat.Dedup','SoulBreak.Combat.WindowsAndResources',
-                    'SoulBreak.Boss.BreakOnce','SoulBreak.Boss.DeathPriority'}
+                    'SoulBreak.Boss.BreakOnce','SoulBreak.Boss.DeathPriority',
+                    'SoulBreak.Boss.IndependentArmorAndCounter'}
         passed = {test['fullTestPath'] for test in results['tests'] if test['state']=='Success'}
         print(f'Automation report: {report}')
         if not required.issubset(passed) or results.get('failed') or results.get('notRun'):
