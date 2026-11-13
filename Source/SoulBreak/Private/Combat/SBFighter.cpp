@@ -104,6 +104,14 @@ void ASBFighter::Pose(FName Clip, bool bLoop, float Duration, bool bRestart)
     Motion->PlayClip(Sequence,bLoop,Duration>0 ? Sequence->GetPlayLength()/Duration : 1.f,BlendTime,MatchStride);
     CurrentClip=Clip;
 }
+void ASBFighter::SyncAttackPose(float Elapsed,float Open,float Close,float Duration,float Contact,float FollowThrough)
+{
+    if (auto* Motion=Cast<USBMotionInstance>(GetMesh()->GetAnimInstance()))
+    {
+        Motion->SetPlaying(false);
+        Motion->SetPosition(Motion->GetLength()*SBCombat::AttackPoseTime(Elapsed,Open,Close,Duration,Contact,FollowThrough),false);
+    }
+}
 void ASBFighter::PlayCue(FName Name,float Volume,float Pitch)
 {
     if (auto* Sound = Cues.Find(Name)) UGameplayStatics::PlaySoundAtLocation(this,*Sound,GetActorLocation(),Volume,Pitch);

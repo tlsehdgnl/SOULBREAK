@@ -9,7 +9,7 @@ class USoundBase;
 UENUM(BlueprintType)
 enum class ESBHeroAction : uint8 { Ready, Cut, ReturnCut, OathCut, Evade, Parry, Hurt, Dead };
 UENUM(BlueprintType)
-enum class ESBKnightAction : uint8 { Idle, Chase, SwordSweep, Bash, Stomp, Stagger, Transition, Dead, ShieldCharge, BellWave, ShoulderCheck };
+enum class ESBKnightAction : uint8 { Idle, Chase, SwordSweep, Bash, Stomp, Stagger, Transition, Dead, ShieldCharge, BellWave, ShoulderCheck, Challenge, ShieldRecoil };
 UENUM(BlueprintType)
 enum class ESBArmorPart : uint8 { Body, SwordArm, Shield, Knee };
 UENUM() enum class ESBHitResult : uint8 { Miss, Body, Arm, Broken, Phase, Death, Plate };
@@ -70,6 +70,24 @@ public:
 
 namespace SBCombat
 {
+    inline float RecoveryDuration(ESBKnightAction Action,float AuthoredRecovery)
+    {
+        const float Minimum=Action==ESBKnightAction::ShieldCharge ? 1.5f :
+            Action==ESBKnightAction::Stomp ? 1.45f : Action==ESBKnightAction::BellWave ? 1.4f : .6f;
+        return FMath::Max(AuthoredRecovery,Minimum);
+    }
+    // Match authored anticipation, contact and recovery to the gameplay clock independently.
+    inline float AttackPoseTime(float Elapsed, float Open, float Close, float Duration, float Contact, float FollowThrough)
+    {
+        if (Elapsed<Open) return Contact*FMath::Clamp(Elapsed/FMath::Max(Open,KINDA_SMALL_NUMBER),0.f,1.f);
+        if (Elapsed<Close) return FMath::Lerp(Contact,FollowThrough,FMath::Clamp((Elapsed-Open)/FMath::Max(Close-Open,KINDA_SMALL_NUMBER),0.f,1.f));
+        return FMath::Lerp(FollowThrough,1.f,FMath::Clamp((Elapsed-Close)/FMath::Max(Duration-Close,KINDA_SMALL_NUMBER),0.f,1.f));
+    }
+    inline bool CanParry(ESBKnightAction Action)
+    {
+        return Action==ESBKnightAction::SwordSweep || Action==ESBKnightAction::Bash ||
+            Action==ESBKnightAction::ShieldCharge || Action==ESBKnightAction::ShoulderCheck;
+    }
     inline bool InWindow(float T, const FSBAttackTiming& W) { return T >= W.Open && T < W.Close; }
     inline bool Spend(float& Stamina, float Cost)
     {

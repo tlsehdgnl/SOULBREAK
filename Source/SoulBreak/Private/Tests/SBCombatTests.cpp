@@ -95,4 +95,35 @@ bool FSBDefense::RunTest(const FString&)
     TestEqual(TEXT("No partial cost"),S,65.f);
     return true;
 }
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FSBPresentationTiming,"SoulBreak.Combat.PresentationTiming",EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+bool FSBPresentationTiming::RunTest(const FString&)
+{
+    // A designer can change windup/recovery without moving the visible contact off the hit.
+    for (float Windup : {.25f,.65f,1.2f})
+    {
+        const float End=Windup+.15f, Duration=End+.8f;
+        TestEqual(TEXT("Contact exactly at damage time"),SBCombat::AttackPoseTime(Windup,Windup,End,Duration,.454f,.62f),.454f);
+        TestEqual(TEXT("Follow-through at active end"),SBCombat::AttackPoseTime(End,Windup,End,Duration,.454f,.62f),.62f);
+        for (float Fps : {30.f,60.f,120.f})
+        {
+            float Previous=0;
+            for (float T=0;T<Duration+.1f;T+=1.f/Fps)
+            {
+                const float Position=SBCombat::AttackPoseTime(T,Windup,End,Duration,.454f,.62f);
+                TestTrue(TEXT("Pose advances monotonically and stays in clip"),Position>=Previous && Position<=1.f);
+                Previous=Position;
+            }
+        }
+    }
+    for (auto Action : {ESBKnightAction::SwordSweep,ESBKnightAction::Bash,ESBKnightAction::ShieldCharge,ESBKnightAction::ShoulderCheck})
+        TestTrue(TEXT("Contact attacks allow parry"),SBCombat::CanParry(Action));
+    for (auto Action : {ESBKnightAction::Stomp,ESBKnightAction::BellWave,ESBKnightAction::Idle,ESBKnightAction::Stagger})
+        TestFalse(TEXT("Waves and nonattacks cannot be parried"),SBCombat::CanParry(Action));
+    for (auto Action : {ESBKnightAction::Stomp,ESBKnightAction::BellWave,ESBKnightAction::ShieldCharge})
+    {
+        TestTrue(TEXT("Heavy recovery leaves time for two cuts"),SBCombat::RecoveryDuration(Action,.4f)>=1.35f);
+        TestEqual(TEXT("Longer designer recovery remains intact"),SBCombat::RecoveryDuration(Action,2.f),2.f);
+    }
+    return true;
+}
 #endif

@@ -48,6 +48,8 @@ ASBHero::ASBHero()
     Boom->bUsePawnControlRotation=true;
     Boom->bEnableCameraLag=true;
     Boom->CameraLagSpeed=25;
+    Boom->CameraLagMaxDistance=35.f;
+    Boom->bUseCameraLagSubstepping=true;
     Boom->ProbeSize=11;
     Camera=CreateDefaultSubobject<UCameraComponent>(TEXT("FollowCamera"));
     Camera->SetupAttachment(Boom,USpringArmComponent::SocketName);
@@ -311,7 +313,6 @@ void ASBHero::ExecuteAction(ESBHeroAction Requested,const FVector& Direction)
         const FName Clip=bSecond ? (bLowCut ? TEXT("LowReturnCut") : TEXT("ReturnCut")) :
             (bLowCut ? TEXT("LowCut") : TEXT("Cut"));
         BeginAction(Requested,Clip,W.Duration);
-        PlayCue(TEXT("Swing"),.68f,bSecond ? .88f:1.06f);
     }
     Combat->StartCut(bLockedOn,SelectedPart);
 }
@@ -323,11 +324,11 @@ void ASBHero::FinishAction()
     Combat->Cancel();
     if (Next!=ESBHeroAction::Ready) ExecuteAction(Next,BufferedDirection);
 }
-void ASBHero::ReceivePattern(float Damage,bool bSword)
+void ASBHero::ReceivePattern(float Damage,bool bParryable)
 {
     if (Health<=0 || Damage<=0) return;
     if (Action==ESBHeroAction::Evade && SBCombat::InWindow(ActionElapsed,CombatData->Evade)) { ++DodgedHits; return; }
-    if (bSword && Action==ESBHeroAction::Parry && SBCombat::InWindow(ActionElapsed,CombatData->Parry))
+    if (bParryable && Action==ESBHeroAction::Parry && SBCombat::InWindow(ActionElapsed,CombatData->Parry))
     {
         ++SuccessfulParries; bOathReady=true; ParryPulse=1.f; ImpactCamera(.85f); PlayCue(TEXT("Parry"));
         if (Knight) Knight->OnParried(); return;
@@ -369,7 +370,31 @@ void ASBHero::UpdateCamera(float Dt)
     Shake=FMath::Max(0.f,Shake-Dt*3.6f);
     const float T=GetWorld()->TimeSeconds;
     Camera->SetRelativeLocation(FVector(0,4.5f*Shake*FMath::Sin(T*106),3.2f*Shake*FMath::Sin(T*87)));
-    Boom->TargetArmLength=FMath::FInterpTo(Boom->TargetArmLength,bLockedOn ? 460.f : 365.f,Dt,10);
+    Camera->SetFieldOfView(FMath::FInterpTo(Camera->FieldOfView,76.f-3.f*ParryPulse,Dt,18.f));
+    const float Distance=bLockedOn && IsValid(Knight) ? FVector::Dist2D(GetActorLocation(),Knight->GetActorLocation()) : 400.f;
+    const float ArmLength=bLockedOn ? FMath::GetMappedRangeValueClamped(FVector2D(100,650),FVector2D(400,520),Distance) : 365.f;
+    Boom->TargetArmLength=FMath::FInterpTo(Boom->TargetArmLength,ArmLength,Dt,6.f);
+    if (Controller)
+    {
+        const FRotator View=Controller->GetControlRotation();
+        const FVector Pivot=GetActorLocation()+Boom->GetRelativeLocation();
+        const FVector Right=FRotationMatrix(View).GetUnitAxis(EAxis::Y);
+        FCollisionQueryParams Query(SCENE_QUERY_STAT(CombatCamera),false,this);
+        if (IsValid(Knight)) Query.AddIgnoredActor(Knight);
+        auto Clearance=[&](float Side)
+        {
+            FHitResult Hit;
+            const FVector End=Pivot-View.Vector()*ArmLength+Right*Side+FVector(0,0,8);
+            GetWorld()->SweepSingleByChannel(Hit,Pivot,End,FQuat::Identity,ECC_Camera,FCollisionShape::MakeSphere(Boom->ProbeSize),Query);
+            return Hit.bBlockingHit ? Hit.Time : 1.f;
+        };
+        const float RightRoom=Clearance(42.f), LeftRoom=Clearance(-42.f);
+        float Side=Boom->SocketOffset.Y>=0 ? 42.f : -42.f;
+        // A margin avoids shoulder oscillation beside columns and door frames.
+        if (RightRoom>LeftRoom+.18f) Side=42.f;
+        else if (LeftRoom>RightRoom+.18f) Side=-42.f;
+        Boom->SocketOffset.Y=FMath::FInterpTo(Boom->SocketOffset.Y,Side,Dt,5.f);
+    }
 }
 void ASBHero::Tick(float Dt)
 {
@@ -401,6 +426,9 @@ void ASBHero::Tick(float Dt)
         const bool Second=Action==ESBHeroAction::ReturnCut;
         const bool Oath=Action==ESBHeroAction::OathCut;
         const FSBAttackTiming& W=Oath ? CombatData->OathCut : Second ? CombatData->ReturnCut : CombatData->Cut;
+        SyncAttackPose(ActionElapsed,W.Open,W.Close,W.Duration,Oath ? .32f : .28f,Oath ? .57f : Second ? .53f : .52f);
+        if (!Oath && Previous<W.Open && ActionElapsed>=W.Open)
+            PlayCue(TEXT("Swing"),.68f,Second ? .88f : 1.06f);
         if (Oath && Previous<W.Open && ActionElapsed>=W.Open)
         {
             PlayCue(TEXT("Swing"),1.2f,.70f); ImpactCamera(.42f);

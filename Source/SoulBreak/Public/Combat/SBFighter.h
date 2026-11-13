@@ -20,6 +20,7 @@ public:
 protected:
     void LoadFighter(const FString& Name, float DesiredHeight);
     void Pose(FName Clip, bool bLoop = false, float Duration = 0.f, bool bRestart = false);
+    void SyncAttackPose(float Elapsed, float Open, float Close, float Duration, float Contact, float FollowThrough);
     void PlayCue(FName Name, float Volume = 1.f, float Pitch = 1.f);
     void Locomotion(float WalkSpeed);
     void Face(const FVector& Direction, float MaxDegrees);

@@ -218,13 +218,28 @@ void ASBCombatHUD::Encounter(const ASBGameMode& Game)
         Wash(C-130,H-100,130,47,Clear,Ink);
         Wash(C,H-100,130,47,Ink,Clear);
         Label(Boss.PatternLabel,C,H-95,19,Paper,true);
-        Meter(C-90,H-64,180,4,Boss.PatternElapsed,Boss.TelegraphDuration,Gold);
+        const bool bParryable=SBCombat::CanParry(Boss.Action);
+        const FLinearColor TellColor=bParryable ? Aqua : Gold;
+        Meter(C-90,H-64,180,4,Boss.PatternElapsed,Boss.TelegraphDuration,TellColor);
+        Label(bParryable ? TEXT("우클릭  패링 가능") : TEXT("Space  회피"),C,H-55,14,TellColor,true);
     }
     else if (Boss.IsPunishWindow())
     {
         Wash(C-123,H-92,123,34,Clear,Ink);
         Wash(C,H-92,123,34,Ink,Clear);
         Label(TEXT("자세가 무너짐  ·  갑주 노출"),C,H-86,17,Gold,true);
+    }
+    else if (Boss.IsRecoveryWindow())
+    {
+        Wash(C-123,H-92,123,34,Clear,Ink);
+        Wash(C,H-92,123,34,Ink,Clear);
+        Label(TEXT("공격 후 빈틈  ·  반격 기회"),C,H-86,17,Aqua,true);
+    }
+    if (Boss.HitFeedbackRemaining>0 && Now>=BreakNoticeUntil)
+    {
+        const bool Armor=Boss.LastHitPart!=ESBArmorPart::Body;
+        Label(Armor ? FString::Printf(TEXT("%s  ·  갑주 타격"),ArmorName(Boss.LastHitPart)) : TEXT("몸통 타격"),
+            C,H*.54f,17,Armor ? Gold : Paper,true);
     }
     if (Locked)
     {
@@ -242,7 +257,16 @@ void ASBCombatHUD::Encounter(const ASBGameMode& Game)
         Diamond(48,H-111,6,Aqua);
         Label(TEXT("E   서약 절단 준비"),65,H-124,19,Aqua);
     }
-    if (Game.Hero->ParryPulse > 0) Label(TEXT("완벽한 패링"),C,H*.60f,24,Aqua,true);
+    if (Game.Hero->ParryPulse > 0)
+    {
+        const float Pulse=Game.Hero->ParryPulse;
+        const float Span=55.f+65.f*(1.f-Pulse);
+        const FLinearColor Flash(Aqua.R,Aqua.G,Aqua.B,Pulse);
+        Line(C-Span-28,H*.60f+15,C-Span,H*.60f+15,Flash,2.f);
+        Line(C+Span,H*.60f+15,C+Span+28,H*.60f+15,Flash,2.f);
+        Label(TEXT("완벽한 패링"),C,H*.60f,24,Flash,true);
+        Label(TEXT("E  서약 절단 충전"),C,H*.60f+32,15,Flash,true);
+    }
     if (Game.Hero->HitPulse > 0)
     {
         const FLinearColor Red(.65f,.03f,.02f,.52f*Game.Hero->HitPulse);

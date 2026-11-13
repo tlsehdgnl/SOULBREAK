@@ -37,7 +37,7 @@ public:
     UFUNCTION(BlueprintCallable) void ToggleLock();
     UFUNCTION(BlueprintCallable) void SetMoveStick(FVector2D RightForward);
     UFUNCTION(BlueprintCallable) void SetSprinting(bool bHeld);
-    UFUNCTION(BlueprintCallable) void ReceivePattern(float Damage, bool bSword);
+    UFUNCTION(BlueprintCallable) void ReceivePattern(float Damage, bool bParryable);
     ESBHeroAction GetBufferedAction() const { return BufferedAction; }
     bool IsStaminaWarningActive() const;
     void ImpactCamera(float Strength);

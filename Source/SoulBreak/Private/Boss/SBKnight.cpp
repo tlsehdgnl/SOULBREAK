@@ -59,7 +59,11 @@ void ASBKnight::StartEncounter(ASBHero* Target)
     if (!Target || Health<=0 || bEncounterActive) return;
     bEncounterActive=true; Hero=Target; Hero->SetKnight(this);
     if (!GetController()) SpawnDefaultController();
-    Enter(ESBKnightAction::Chase,0.f);
+    StopMoving();
+    Face(Target->GetActorLocation()-GetActorLocation(),180.f);
+    Enter(ESBKnightAction::Challenge,.90f);
+    // Finish on the raised guard, before the sweep's first attacking pose.
+    Pose(TEXT("SwordSweep"),false,StateDuration/.38f,true);
     if (auto* AI=Cast<ASBBossController>(Controller)) AI->BeginDuel(*this);
 }
 void ASBKnight::StopMoving()
@@ -114,7 +118,8 @@ void ASBKnight::StartPattern(ESBKnightAction Pattern)
     Enter(Pattern,0);
     ++PatternsStarted; bPreferStomp=false;
     const FSBPattern* P=CurrentPattern(); check(P);
-    StateDuration=P->Duration(); TelegraphDuration=P->Windup;
+    StateDuration=P->Windup+P->Active+SBCombat::RecoveryDuration(Pattern,P->Recovery);
+    TelegraphDuration=P->Windup;
     FName Clip=TEXT("Bash");
     FName Cue=TEXT("Shield");
     switch (Pattern)
@@ -178,12 +183,36 @@ void ASBKnight::Think(float Dt)
     if (!bEncounterActive || !Hero || Hero->Health<=0 || Health<=0 || !CombatData) return;
     const float Previous=PatternElapsed;
     PatternElapsed+=Dt;
+    if (Action==ESBKnightAction::Challenge || Action==ESBKnightAction::ShieldRecoil)
+    {
+        if (Action==ESBKnightAction::Challenge && Previous<.40f && PatternElapsed>=.40f)
+            PlayCue(TEXT("HeavyStep"),.95f,.88f);
+        if (Action==ESBKnightAction::ShieldRecoil && Previous<.26f && PatternElapsed>=.26f)
+        {
+            // Recover from the arm flinch into the shoulder-first stance before the shove.
+            Pose(TEXT("ShoulderCheck"),false,(StateDuration-.26f)/.32f,true);
+        }
+        if (PatternElapsed>=StateDuration) SelectOrChase(Dt);
+        return;
+    }
     if (Action==ESBKnightAction::Transition || Action==ESBKnightAction::Stagger)
     {
         if (PatternElapsed>=StateDuration) Enter(ESBKnightAction::Idle,0); return;
     }
     if (const FSBPattern* P=CurrentPattern())
     {
+        // Contact landmarks from Tools/Art/choreography.py; data edits retain the same visual impact.
+        float Contact=.454f, FollowThrough=.62f;
+        switch (Action)
+        {
+        case ESBKnightAction::Bash: Contact=.45f; FollowThrough=.56f; break;
+        case ESBKnightAction::Stomp: Contact=.46f; FollowThrough=.64f; break;
+        case ESBKnightAction::ShieldCharge: Contact=.365f; FollowThrough=.519f; break;
+        case ESBKnightAction::BellWave: Contact=.47f; FollowThrough=.72f; break;
+        case ESBKnightAction::ShoulderCheck: Contact=.415f; FollowThrough=.60f; break;
+        default: break;
+        }
+        SyncAttackPose(PatternElapsed,P->Windup,P->Windup+P->Active,StateDuration,Contact,FollowThrough);
         const int32 Generation=AttackGeneration;
         if (Action==ESBKnightAction::ShieldCharge) TickCharge(*P,Previous);
         else if (Action==ESBKnightAction::BellWave) TickWave(*P,Previous);
@@ -203,7 +232,8 @@ void ASBKnight::Think(float Dt)
                 if (Stomp && FVector::Dist2D(Hero->GetActorLocation(),GetActorLocation())<520) Hero->ImpactCamera(.6f);
                 const FVector To=Hero->GetActorLocation()-GetActorLocation();
                 const bool InAngle=Stomp || FVector::DotProduct(To.GetSafeNormal2D(),GetActorForwardVector())>=FMath::Cos(FMath::DegreesToRadians(P->Angle*.5f));
-                if (To.Size2D()<=P->Range && InAngle) Hero->ReceivePattern(P->Damage,Sword);
+                if (To.Size2D()<=P->Range && InAngle && HasClearContact())
+                    Hero->ReceivePattern(P->Damage,SBCombat::CanParry(Action));
             }
         }
         // A parry or break can transition state synchronously while delivering this hit.
@@ -246,10 +276,10 @@ void ASBKnight::TickCharge(const FSBPattern& P,float Previous)
     if (bImpactResolved || (bChargeBlocked && Block.GetActor()!=Hero)) return;
     const FVector End=GetActorLocation()+ChargeForward*37.f;
     FVector Target=Hero->GetActorLocation(); Target.Z=Start.Z;
-    if (FMath::PointDistToSegmentSquared(Target,Start,End)>FMath::Square(65.f)) return;
+    if (FMath::PointDistToSegmentSquared(Target,Start+ChargeForward*37.f,End)>FMath::Square(65.f) || !HasClearContact()) return;
     bImpactResolved=true;
     const float OldHP=Hero->Health;
-    Hero->ReceivePattern(P.Damage,false);
+    Hero->ReceivePattern(P.Damage,true);
     bChargeConnected=Hero->Health<OldHP;
     if (bChargeConnected) {PlayCue(TEXT("Shield"));Hero->ImpactCamera(.85f);}
 }
@@ -279,6 +309,23 @@ void ASBKnight::TickWave(const FSBPattern& P,float Previous)
     }
     PreviousWaveDistance=Distance;
 }
+bool ASBKnight::HasClearContact() const
+{
+    if (!Hero) return false;
+    if (FMath::Abs(Hero->GetActorLocation().Z-GetActorLocation().Z)>
+        GetCapsuleComponent()->GetScaledCapsuleHalfHeight()+Hero->GetCapsuleComponent()->GetScaledCapsuleHalfHeight()) return false;
+    FCollisionQueryParams Query(SCENE_QUERY_STAT(BossContact),false,this);
+    Query.AddIgnoredActor(Hero);
+    FHitResult Hit;
+    // World geometry must block melee; targeting capsules and VFX do not block this query.
+    return !GetWorld()->LineTraceSingleByObjectType(Hit,GetActorLocation(),Hero->GetActorLocation(),
+        FCollisionObjectQueryParams(ECC_WorldStatic),Query);
+}
+bool ASBKnight::IsRecoveryWindow() const
+{
+    const FSBPattern* P=CurrentPattern();
+    return P && PatternElapsed>=P->Windup+P->Active && PatternElapsed<StateDuration;
+}
 bool ASBKnight::IsPunishWindow() const
 {
     return CombatData && Action==ESBKnightAction::ShieldCharge && !bChargeConnected &&
@@ -301,6 +348,7 @@ void ASBKnight::UpdateRing(float OuterRadius,float InnerRadius)
 void ASBKnight::Tick(float Dt)
 {
     Super::Tick(Dt);
+    HitFeedbackRemaining=FMath::Max(0.f,HitFeedbackRemaining-Dt);
     if (Health<=0)
     {
         PatternElapsed+=Dt;
@@ -378,7 +426,7 @@ bool ASBKnight::TracePart(const FVector& From,const FVector& To,ESBArmorPart Par
 }
 void ASBKnight::OnParried()
 {
-    if (!bEncounterActive || Action!=ESBKnightAction::SwordSweep || Health<=0) return;
+    if (!bEncounterActive || !SBCombat::CanParry(Action) || Health<=0) return;
     StopMoving(); Enter(ESBKnightAction::Stagger,1.f);
     Pose(TEXT("Stagger"),false,1,true); HitPulse=1;
     if (Hero && Hero->GetMesh()->DoesSocketExist(TEXT("BladeBase")))
@@ -438,8 +486,10 @@ void ASBKnight::ApplyPartHit(int32 Id,float Damage,ESBArmorPart Part)
     const bool bHitArmor=Part!=ESBArmorPart::Body && !Broken;
     const ESBHitResult R=SBCombat::ResolvePart(Id,LastHitId,Damage,Part,Health,Durability,Broken,Phase,IsPunishWindow() ? 1.5f:1.f);
     if (R==ESBHitResult::Miss) return;
+    LastHitPart=bHitArmor ? Part : ESBArmorPart::Body;
+    HitFeedbackRemaining=.65f;
     HitPulse=1.f;
-    PlayCue(TEXT("Impact"),.9f,bHitArmor ? 1.10f:.86f);
+    PlayCue(bHitArmor ? TEXT("Shield") : TEXT("BodyHit"),bHitArmor ? .75f : .9f,bHitArmor ? 1.18f : .86f);
     if (R==ESBHitResult::Death)
     {
         StopMoving(); Enter(ESBKnightAction::Dead,1.25f); Pose(TEXT("Death"),false,1.25f,true);
@@ -449,7 +499,14 @@ void ASBKnight::ApplyPartHit(int32 Id,float Damage,ESBArmorPart Part)
     if (OldPhase!=Phase) { ++PhaseChanges; bPreferStomp=true; }
     if (R==ESBHitResult::Broken || R==ESBHitResult::Phase)
     {
-        StopMoving(); Enter(OldPhase!=Phase ? ESBKnightAction::Transition : ESBKnightAction::Stagger,1.f);
+        StopMoving();
+        if (R==ESBHitResult::Broken && Part==ESBArmorPart::Shield)
+        {
+            Enter(ESBKnightAction::ShieldRecoil,1.f);
+            Pose(TEXT("Stagger"),false,1.f,true);
+            return;
+        }
+        Enter(OldPhase!=Phase ? ESBKnightAction::Transition : ESBKnightAction::Stagger,1.f);
         Pose(R==ESBHitResult::Broken && Part==ESBArmorPart::SwordArm ? TEXT("Sunder") : TEXT("Stagger"),false,1.f,true);
     }
     else if (auto* Fx=GetWorld()->SpawnActor<ASBImpact>(PartPoint(bHitArmor ? Part : ESBArmorPart::Body),GetActorRotation()))

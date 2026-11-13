@@ -27,6 +27,8 @@ public:
     UPROPERTY(BlueprintReadOnly) FString PatternLabel;
     UPROPERTY(BlueprintReadOnly) float PatternElapsed = 0.f;
     UPROPERTY(BlueprintReadOnly) float TelegraphDuration = 0.f;
+    UPROPERTY(BlueprintReadOnly) float HitFeedbackRemaining = 0.f;
+    UPROPERTY(BlueprintReadOnly) ESBArmorPart LastHitPart = ESBArmorPart::Body;
     UPROPERTY(BlueprintReadOnly) int32 AttackGeneration = 0;
     UPROPERTY(BlueprintReadOnly) int32 BreakCount = 0;
     UPROPERTY(BlueprintReadOnly) int32 PhaseChanges = 0;
@@ -40,6 +42,7 @@ public:
     UFUNCTION(BlueprintPure) bool IsPartBroken(ESBArmorPart Part) const;
     UFUNCTION(BlueprintPure) FVector PartPoint(ESBArmorPart Part) const;
     UFUNCTION(BlueprintPure) bool IsPunishWindow() const;
+    UFUNCTION(BlueprintPure) bool IsRecoveryWindow() const;
     UFUNCTION(BlueprintCallable) void OnParried();
     bool TracePart(const FVector& From,const FVector& To,ESBArmorPart Part) const;
     FVector ArmPoint() const;
@@ -83,4 +86,5 @@ private:
     void TickCharge(const FSBPattern& Pattern,float Previous);
     void TickWave(const FSBPattern& Pattern,float Previous);
     void StopMoving();
+    bool HasClearContact() const;
 };

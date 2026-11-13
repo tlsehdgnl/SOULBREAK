@@ -17,6 +17,8 @@ void USBCombatComponent::TraceCut(ASBHero& Hero,ASBKnight* Knight,ASBTrainingDum
     float B = FMath::Clamp((Now-W.Open)/(W.Close-W.Open),0.f,1.f);
     const int32 Segments = FMath::Max(1,FMath::CeilToInt((B-A)*12));
     const FVector Origin = Hero.GetActorLocation()+FVector(0,0,22);
+    FCollisionQueryParams OcclusionQuery(SCENE_QUERY_STAT(PlayerSwordContact),false,&Hero);
+    if (bBoss) OcclusionQuery.AddIgnoredActor(Knight);
     const bool bAimPart=bBoss && bTargeted && SelectedPart!=ESBArmorPart::Body && !Knight->IsPartBroken(SelectedPart);
     const FVector Aim=bAimPart ? Knight->PartPoint(SelectedPart)-Origin : FVector::ZeroVector;
     auto Point = [&](float T,float R) {
@@ -32,6 +34,9 @@ void USBCombatComponent::TraceCut(ASBHero& Hero,ASBKnight* Knight,ASBTrainingDum
         for(float R : {12.f,24.f,36.f,56.f,76.f,96.f,116.f,132.f})
         {
             const FVector Start=Point(From,R), End=Point(To,R);
+            FHitResult Obstruction;
+            if (Hero.GetWorld()->LineTraceSingleByObjectType(Obstruction,Origin,End,
+                FCollisionObjectQueryParams(ECC_WorldStatic),OcclusionQuery)) continue;
             if (bBoss)
             {
                 for (ESBArmorPart Part : {ESBArmorPart::SwordArm,ESBArmorPart::Shield,ESBArmorPart::Knee})
