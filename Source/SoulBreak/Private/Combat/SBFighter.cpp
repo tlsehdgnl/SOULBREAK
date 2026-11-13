@@ -34,7 +34,7 @@ void ASBFighter::LoadFighter(const FString& Name, float DesiredHeight)
     bHeavy = Name == TEXT("Knight");
     const FString MeshPath = FString::Printf(TEXT("/Game/SoulBreak/Characters/SK_%s.SK_%s"),*Name,*Name);
     if (!GetMesh()->GetSkeletalMeshAsset())
-        if (USkeletalMesh* Mesh = LoadObject<USkeletalMesh>(nullptr,*MeshPath)) GetMesh()->SetSkeletalMesh(Mesh);
+        if (USkeletalMesh* FighterMesh = LoadObject<USkeletalMesh>(nullptr,*MeshPath)) GetMesh()->SetSkeletalMesh(FighterMesh);
     AlignMesh(DesiredHeight);
     GetMesh()->SetAnimInstanceClass(USBMotionInstance::StaticClass());
     // A soft contact patch anchors the feet even at low shadow scalability.

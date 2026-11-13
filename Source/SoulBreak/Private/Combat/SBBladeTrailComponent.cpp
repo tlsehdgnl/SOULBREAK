@@ -94,10 +94,10 @@ void USBBladeTrailComponent::TickComponent(float Dt,ELevelTick TickType,FActorCo
             History.Add(Sample);
         }
     }
-    const bool bVisible = History.Num()>=2;
-    if (bVisible!=bVisibleLastFrame) SetVisibility(bVisible);
-    bVisibleLastFrame=bVisible;
-    if (bVisible) DrawHistory(Now);
+    const bool bTrailVisible = History.Num()>=2;
+    if (bTrailVisible!=bVisibleLastFrame) SetVisibility(bTrailVisible);
+    bVisibleLastFrame=bTrailVisible;
+    if (bTrailVisible) DrawHistory(Now);
 }
 void USBBladeTrailComponent::DrawHistory(double Now)
 {
