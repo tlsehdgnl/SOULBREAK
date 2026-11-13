@@ -111,11 +111,31 @@ void ASBCombatHUD::DrawHUD()
     {
         Result(*Game); return;
     }
+    if (Game->Encounter==ESBEncounter::Introduction)
+    {
+        Box(0,0,W,36,Ink); Box(0,H-36,W,36,Ink);
+        Label(TEXT("잿빛 성당의 기사"),W*.5f,H-87,28,Paper,true);
+        return;
+    }
+    if (Game->Encounter==ESBEncounter::Altar)
+    {
+        if (!Game->CandleIsLit()) Label(Game->CanLightCandle() ? TEXT("E   제단의 촛불 켜기") : TEXT("기사 뒤편의 제단으로"),W*.5f,H-94,20,Paper,true);
+        return;
+    }
     Vitals(*Game);
     if (Game->Encounter == ESBEncounter::Fighting) Encounter(*Game);
     else
     {
         FVector2D Pt;
+        if (Game->Dummy && Game->Hero->UsesRack() &&
+            PlayerOwner->ProjectWorldLocationToScreen(Game->Dummy->RackPoint(Game->Hero->SelectedPart),Pt))
+        {
+            float X=Pt.X/Unit,Y=Pt.Y/Unit;
+            const bool Hit=Game->Dummy->RackPulse>0;
+            if (Game->Hero->bLockedOn) Diamond(X,Y,8,Hit ? Aqua : Gold);
+            Label(Hit ? FString::Printf(TEXT("%s 명중"),ArmorName(Game->Dummy->LastRackHit)) :
+                FString::Printf(TEXT("갑주 연습  ·  F  %s"),ArmorName(Game->Hero->SelectedPart)),X,Y-26,15,Paper,true);
+        }
         if (Game->Dummy && PlayerOwner->ProjectWorldLocationToScreen(Game->Dummy->GetActorLocation()+FVector(0,0,204),Pt))
         {
             float X=Pt.X/Unit,Y=Pt.Y/Unit;
@@ -131,7 +151,7 @@ void ASBCombatHUD::DrawHUD()
         Label(TEXT("S O U L   B R E A K     /     I"),78,32,14,Gold);
         Label(TEXT("잿빛 대성당"),76,50,29,Paper);
         Line(78,88,219,88,FLinearColor(.66,.48,.23,.62));
-        Label(TEXT("성당 안쪽으로 들어가 기사에게 도전하세요"),78,96,15,Muted);
+        Label(Game->CanOpenDoor() ? TEXT("E   성당 문 열기") : Game->DoorIsOpen() ? TEXT("열린 문으로 들어가세요") : TEXT("성당 정문으로 다가가세요"),78,96,15,Paper);
         Wash(W-343,H-107,319,79,Clear,Ink);
         Label(TEXT("좌클릭  베기    우클릭  패링"),W-303,H-99,16,Paper);
         Label(TEXT("Space  회피    Tab  고정    F1  조작"),W-303,H-73,16,Paper);

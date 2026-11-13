@@ -135,8 +135,6 @@ for i in range(16):
     a=i*pi/8;v=(cos(a),sin(a));w=(-v[1],v[0]);len1=260 if not i%2 else 180
     def gp(d,h):return (60+v[0]*d+w[0]*h,v[1]*d+w[1]*h,.42)
     plate([gp(75,0),gp(125,-9),gp(len1,0)],'Purbeck');plate([gp(75,0),gp(len1,0),gp(125,8)],'Memorial')
-for x in (-558,-545):
-    for y in range(-720,721,70):box(x,y,.25,3,49,.35,'Rune' if x==-545 else 'Gold')
 
 # Profiles in (tangent, height) on each of the four walls.
 def wallpoint(axis,sign,w,t,z,offset=0):

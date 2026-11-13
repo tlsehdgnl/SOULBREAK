@@ -1,4 +1,5 @@
 #include "Player/SBHero.h"
+#include "Core/SBGameMode.h"
 #include "Boss/SBKnight.h"
 #include "Combat/SBCombatComponent.h"
 #include "Combat/SBTrainingDummy.h"
@@ -132,14 +133,24 @@ void ASBHero::EndPlay(EEndPlayReason::Type Why)
 }
 void ASBHero::SetKnight(ASBKnight* NewKnight) { Knight=NewKnight; if (!Knight) bLockedOn=false; }
 void ASBHero::SetDummy(ASBTrainingDummy* NewDummy) {Dummy=NewDummy;}
+bool ASBHero::UsesRack() const
+{
+    return Dummy && Knight && !Knight->bEncounterActive && Knight->Health>0 && GetActorLocation().X<-1110 &&
+        FVector::DistSquared2D(GetActorLocation(),Dummy->RackPoint(ESBArmorPart::Body))<FMath::Square(360.f);
+}
+FVector ASBHero::TargetPoint(ESBArmorPart Part) const
+{
+    return UsesRack() ? Dummy->RackPoint(Part) : Knight->PartPoint(Part);
+}
 void ASBHero::ToggleLock()
 {
-    if (Health<=0 || !IsValid(Knight) || Knight->Health<=0) return;
+    if (Health<=0 || !IsValid(Knight) || Knight->Health<=0 || (!Knight->bEncounterActive && !UsesRack())) return;
     bLockedOn=!bLockedOn;
     LockViewOffset=FVector2D::ZeroVector;
 }
 void ASBHero::CycleTargetPart()
 {
+    if (UsesRack() && Health>0 && InputEnabled()) bLockedOn=true;
     if (!bLockedOn || !IsValid(Knight) || Health<=0 || !InputEnabled()) return;
     constexpr ESBArmorPart Order[]={ESBArmorPart::SwordArm,ESBArmorPart::Shield,ESBArmorPart::Knee,ESBArmorPart::Body};
     int32 Current=0;
@@ -225,7 +236,11 @@ const FSBAttackTiming& ASBHero::TimingFor(ESBHeroAction Requested) const
     }
 }
 void ASBHero::TryAttack() { RequestAction(ESBHeroAction::Cut); }
-void ASBHero::TryOathCut() { RequestAction(ESBHeroAction::OathCut); }
+void ASBHero::TryOathCut()
+{
+    if (auto* Game=GetWorld()->GetAuthGameMode<ASBGameMode>(); Game && (Game->TryLightCandle() || Game->TryOpenDoor())) return;
+    RequestAction(ESBHeroAction::OathCut);
+}
 void ASBHero::TryDodge() { RequestAction(ESBHeroAction::Evade); }
 void ASBHero::TryParry() { RequestAction(ESBHeroAction::Parry); }
 bool ASBHero::IsStaminaWarningActive() const
@@ -292,8 +307,8 @@ void ASBHero::ExecuteAction(ESBHeroAction Requested,const FVector& Direction)
     }
     if (bLockedOn && Knight)
     {
-        const FVector ToBody=Knight->GetActorLocation()-GetActorLocation();
-        const FVector ToPart=Knight->PartPoint(SelectedPart)-GetActorLocation();
+        const FVector ToBody=TargetPoint(ESBArmorPart::Body)-GetActorLocation();
+        const FVector ToPart=TargetPoint(SelectedPart)-GetActorLocation();
         // An extended shield may already overlap our sword hand. Face through the guard
         // instead of turning away from the knight and lunging backwards through its edge.
         const bool bAimAtPlate=ToPart.SizeSquared2D()>FMath::Square(35.f) && FVector::DotProduct(ToPart.GetSafeNormal2D(),ToBody.GetSafeNormal2D())>0;
@@ -350,11 +365,15 @@ void ASBHero::UpdateCamera(float Dt)
             bHadMouseCapture=bCaptured;
         }
     }
-    if (IsValid(Knight) && Knight->Health<=0) bLockedOn=false;
+    if (IsValid(Knight) && (Knight->Health<=0 || (!Knight->bEncounterActive && !UsesRack())))
+    {
+        bLockedOn=false;
+        SelectedPart=ESBArmorPart::Body;
+    }
     if (IsValid(Knight) && Knight->IsPartBroken(SelectedPart)) SelectedPart=ESBArmorPart::Body;
     if (bLockedOn && Controller && Knight)
     {
-        FVector Focus=Knight->GetActorLocation()+FVector(0,0,27);
+        FVector Focus=UsesRack() ? TargetPoint(SelectedPart) : Knight->GetActorLocation()+FVector(0,0,27);
         FRotator Desired=(Focus-(GetActorLocation()+FVector(0,0,48))).Rotation();
         // An oblique view keeps the weapon arm visible when both fighters are within striking distance.
         const float Near = 1.f-FMath::Clamp((FVector::Dist2D(Focus,GetActorLocation())-82.f)/265.f,0.f,1.f);
@@ -415,7 +434,7 @@ void ASBHero::Tick(float Dt)
     case ESBHeroAction::Ready:
         GetCharacterMovement()->MaxWalkSpeed=bSprint && !bNeedsSprintRecovery ? 650.f : 450.f;
         if (bMoving) AddMovementInput(WishDirection());
-        if (bLockedOn && Knight) Face(Knight->GetActorLocation()-GetActorLocation(),720*Dt);
+        if (bLockedOn && Knight) Face(TargetPoint(ESBArmorPart::Body)-GetActorLocation(),720*Dt);
         else if (bMoving) Face(WishDirection(),780*Dt);
         Locomotion(450.f);
         break;

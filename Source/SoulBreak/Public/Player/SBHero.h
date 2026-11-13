@@ -19,7 +19,7 @@ public:
     ASBHero();
     UPROPERTY(BlueprintReadOnly) float Stamina = 100.f;
     UPROPERTY(BlueprintReadOnly) bool bLockedOn = false;
-    UPROPERTY(BlueprintReadOnly) ESBArmorPart SelectedPart = ESBArmorPart::SwordArm;
+    UPROPERTY(BlueprintReadOnly) ESBArmorPart SelectedPart = ESBArmorPart::Body;
     UFUNCTION(BlueprintCallable) void CycleTargetPart();
     UPROPERTY(BlueprintReadOnly) ESBHeroAction Action = ESBHeroAction::Ready;
     UPROPERTY(BlueprintReadOnly) float ActionElapsed = 0.f;
@@ -40,6 +40,8 @@ public:
     UFUNCTION(BlueprintCallable) void ReceivePattern(float Damage, bool bParryable);
     ESBHeroAction GetBufferedAction() const { return BufferedAction; }
     bool IsStaminaWarningActive() const;
+    FVector TargetPoint(ESBArmorPart Part) const;
+    bool UsesRack() const;
     void ImpactCamera(float Strength);
     void ClearControlInput();
     virtual void DisableInput(APlayerController* PC) override;

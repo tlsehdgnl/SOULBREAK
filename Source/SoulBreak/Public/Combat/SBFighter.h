@@ -31,5 +31,5 @@ private:
     UPROPERTY(Transient) TMap<FName,TObjectPtr<USoundBase>> Cues;
     FName CurrentClip;
     bool bHeavy = false;
-    float NextStep = 0.f;
+    int32 LastSupportFoot = INDEX_NONE;
 };

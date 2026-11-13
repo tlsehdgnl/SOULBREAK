@@ -124,8 +124,15 @@ void ASBReviewDriver::Drive(ASBGameMode& Game, ASBHero& Hero, ASBKnight& Knight)
     Hero.SetMoveStick(FVector2D::ZeroVector);
     if (Game.Encounter == ESBEncounter::Approach)
     {
+        if (Game.CanOpenDoor()) Game.TryOpenDoor();
         if (Session.Elapsed > 2 || bPerf)
             MoveToward(Hero, Knight.GetActorLocation(), 70.f);
+        return;
+    }
+    if (Game.Encounter==ESBEncounter::Altar)
+    {
+        if (Game.CanLightCandle()) Hero.TryOathCut();
+        else MoveToward(Hero,FVector(932,0,Hero.GetActorLocation().Z),30.f);
         return;
     }
     if (Game.Encounter != ESBEncounter::Fighting) return;

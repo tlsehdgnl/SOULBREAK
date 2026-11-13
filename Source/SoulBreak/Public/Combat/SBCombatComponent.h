@@ -21,6 +21,7 @@ public:
     UPROPERTY(BlueprintReadOnly) int32 AttackId = 0;
 private:
     bool bBodyPending = false;
+    ESBArmorPart FreeContact = ESBArmorPart::Body;
     bool bResolved = false;
     bool bTargeted = false;
     ESBArmorPart SelectedPart = ESBArmorPart::SwordArm;

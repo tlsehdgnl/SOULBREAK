@@ -6,6 +6,7 @@
 void USBCombatComponent::StartCut(bool bLocked,ESBArmorPart Part)
 {
     ++AttackId; bBodyPending=false; bResolved=false; bTargeted=bLocked; SelectedPart=Part;
+    FreeContact=ESBArmorPart::Body;
 }
 void USBCombatComponent::Cancel() { bBodyPending=false; bResolved=true; }
 void USBCombatComponent::TraceCut(ASBHero& Hero,ASBKnight* Knight,ASBTrainingDummy* Dummy,const FSBAttackTiming& W,bool bReverse,float Previous,float Now)
@@ -19,12 +20,17 @@ void USBCombatComponent::TraceCut(ASBHero& Hero,ASBKnight* Knight,ASBTrainingDum
     const FVector Origin = Hero.GetActorLocation()+FVector(0,0,22);
     FCollisionQueryParams OcclusionQuery(SCENE_QUERY_STAT(PlayerSwordContact),false,&Hero);
     if (bBoss) OcclusionQuery.AddIgnoredActor(Knight);
-    const bool bAimPart=bBoss && bTargeted && SelectedPart!=ESBArmorPart::Body && !Knight->IsPartBroken(SelectedPart);
-    const FVector Aim=bAimPart ? Knight->PartPoint(SelectedPart)-Origin : FVector::ZeroVector;
+    const bool bRack=!bBoss && Hero.UsesRack();
+    const bool bAimPart=(bBoss || bRack) && bTargeted && SelectedPart!=ESBArmorPart::Body && !Knight->IsPartBroken(SelectedPart);
+    const FVector Aim=bAimPart ? Hero.TargetPoint(SelectedPart)-Origin : FVector::ZeroVector;
+    const FVector TowardHero=bBoss ? (Origin-Knight->GetActorLocation()).GetSafeNormal2D() : FVector::ZeroVector;
+    const bool bAtFlank=bBoss && FMath::Abs(FVector::DotProduct(TowardHero,Knight->GetActorForwardVector()))<.6;
+    // At point-blank range the shoulder or knee may be almost directly above/below the grip.
+    const double GripLift=bAimPart ? FMath::Clamp(Aim.Z,-35.,35.) * (1.-FMath::Clamp(Aim.Size2D()/75.,0.,1.)) : 0.;
     auto Point = [&](float T,float R) {
         const float U = bReverse ? 1-T:T;
         FVector Dir = Hero.GetActorForwardVector().RotateAngleAxis(FMath::Lerp(64.f,-64.f,U),FVector::UpVector);
-        const double Rise=bAimPart ? FMath::Clamp(Aim.Z/FMath::Max(25.,Aim.Size2D()),-1.25,1.25)*R : (.2f+.25f*(1-U))*R;
+        const double Rise=bAimPart ? GripLift+FMath::Clamp((Aim.Z-GripLift)/FMath::Max(12.,Aim.Size2D()),-1.75,1.75)*R : (.2f+.25f*(1-U))*R;
         return Origin+Dir*R+FVector(0,0,Rise);
     };
     ESBArmorPart HitPart=ESBArmorPart::Body;
@@ -41,22 +47,37 @@ void USBCombatComponent::TraceCut(ASBHero& Hero,ASBKnight* Knight,ASBTrainingDum
             {
                 for (ESBArmorPart Part : {ESBArmorPart::SwordArm,ESBArmorPart::Shield,ESBArmorPart::Knee})
                 {
-                    if ((!bTargeted || Part==SelectedPart) && Knight->TracePart(Start,End,Part))
+                    if ((!bTargeted || Part==SelectedPart) && Knight->TracePart(Start,End,Part,bAimPart))
                     {
-                        HitPart=Part;
+                        if (bTargeted) HitPart=Part;
+                        else if (bAtFlank && FVector::DotProduct(Knight->PartPoint(Part)-Knight->PartPoint(ESBArmorPart::Body),TowardHero)>12.)
+                            HitPart=Part;
+                        else if (FreeContact==ESBArmorPart::Body) FreeContact=Part;
                         break;
                     }
                 }
                 if (HitPart!=ESBArmorPart::Body) break;
                 if (!bBodyPending) bBodyPending=Knight->TracePart(Start,End,ESBArmorPart::Body);
             }
-            else if (!bBodyPending) bBodyPending=Dummy->TraceSword(Start,End);
+            else
+            {
+                if (bRack)
+                {
+                    for (ESBArmorPart Part : {ESBArmorPart::SwordArm,ESBArmorPart::Shield,ESBArmorPart::Knee})
+                        if ((!bTargeted || Part==SelectedPart) && Dummy->TraceRack(Start,End,Part,bAimPart))
+                        { HitPart=Part; break; }
+                    if (HitPart!=ESBArmorPart::Body) break;
+                }
+                if (!bBodyPending) bBodyPending=Dummy->TraceSword(Start,End);
+            }
         }
     }
+    if (!bTargeted && Now>=W.Close && !bBodyPending) HitPart=FreeContact;
     if (HitPart!=ESBArmorPart::Body || (Now>=W.Close && bBodyPending))
     {
         bResolved=true;
         if (bBoss) Knight->ApplyPartHit(AttackId,W.Damage,HitPart);
+        else if (HitPart!=ESBArmorPart::Body) Dummy->HitRack(HitPart,AttackId);
         else Dummy->ApplySwordHit(AttackId,W.Damage);
         Hero.ImpactCamera(HitPart!=ESBArmorPart::Body ? .34f : .22f);
     }

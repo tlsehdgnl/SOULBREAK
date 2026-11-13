@@ -1,15 +1,18 @@
 #include "Combat/SBBladeTrailComponent.h"
 #include "Player/SBHero.h"
+#include "Core/SBGameMode.h"
 #include "Boss/SBKnight.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Materials/MaterialInterface.h"
+#include "Materials/MaterialInstanceDynamic.h"
+#include "Components/StaticMeshComponent.h"
 #include "UObject/ConstructorHelpers.h"
 
 namespace
 {
 constexpr int32 Rows = 14;
 constexpr int32 Columns = 4;
-constexpr float Lifetime = .095f;
+
 const float AcrossBlade[Columns] = {.30f,.79f,.975f,1.f};
 const float Opacity[Columns] = {0.f,.11f,.58f,.02f};
 }
@@ -38,6 +41,19 @@ void USBBladeTrailComponent::BeginPlay()
     }
     Rig = Fighter->GetMesh();
     AddTickPrerequisiteComponent(Rig);
+    if (Hero)
+    {
+        Groove=NewObject<UStaticMeshComponent>(Hero);
+        Groove->SetStaticMesh(LoadObject<UStaticMesh>(nullptr,TEXT("/Engine/BasicShapes/Sphere")));
+        auto* Light=UMaterialInstanceDynamic::Create(GetMaterial(0),this);
+        Light->SetVectorParameterValue(TEXT("Tint"),FLinearColor(.08f,.52f,1.5f));
+        Light->SetScalarParameterValue(TEXT("Energy"),4.f);
+        Groove->SetMaterial(0,Light);
+        Groove->SetCastShadow(false);
+        Groove->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+        Groove->SetVisibility(false);
+        Groove->RegisterComponent();
+    }
     History.Reserve(Rows);
     Vertices.SetNumZeroed(Rows*Columns);
     Colors.Init(FLinearColor::Transparent, Rows*Columns);
@@ -78,8 +94,23 @@ void USBBladeTrailComponent::TickComponent(float Dt,ELevelTick TickType,FActorCo
 {
     Super::TickComponent(Dt,TickType,TickFunction);
     const double Now = GetWorld()->GetTimeSeconds();
+    if (Groove)
+    {
+        ChargeFill=FMath::FInterpConstantTo(ChargeFill,Hero->bOathReady ? 1.f : 0.f,Dt,Hero->bOathReady ? 3.2f : 2.6f);
+        Groove->SetVisibility(ChargeFill>.012f && Hero->Health>0);
+        if (ChargeFill>.012f)
+        {
+            const FVector Base=Rig->GetSocketLocation(TEXT("BladeBase")), Tip=Rig->GetSocketLocation(TEXT("BladeTip"));
+            const float Start=Hero->bOathReady ? .07f : 1.f-ChargeFill*.93f;
+            const FVector A=FMath::Lerp(Base,Tip,Start), B=FMath::Lerp(Base,Tip,Start+.93f*ChargeFill);
+            Groove->SetWorldLocationAndRotation((A+B)*.5f,FRotationMatrix::MakeFromZ(B-A).ToQuat());
+            Groove->SetWorldScale3D(FVector(.035,.035,(B-A).Size()/100.));
+        }
+        if (const auto* Game=GetWorld()->GetAuthGameMode<ASBGameMode>(); Game && Game->Knight && Game->Knight->bOathFinish)
+            TrailLife=.65f;
+    }
     if (Knight && Knight->bArmBroken) History.Reset();
-    while (History.Num() && Now-History[0].Time>Lifetime)
+    while (History.Num() && Now-History[0].Time>TrailLife)
         History.RemoveAt(0,1,EAllowShrinking::No);
     const EStroke Stroke=CurrentStroke();
     if (Stroke!=EStroke::None && Rig && Rig->DoesSocketExist(TEXT("BladeTip")))
@@ -102,11 +133,11 @@ void USBBladeTrailComponent::TickComponent(float Dt,ELevelTick TickType,FActorCo
 void USBBladeTrailComponent::DrawHistory(double Now)
 {
     const FLinearColor Ink = LastStroke==EStroke::Knight ? FLinearColor(.98f,.34f,.075f)
-        : LastStroke==EStroke::Oath ? FLinearColor(.09f,1.f,.77f) : FLinearColor(.45f,.67f,.8f);
+        : LastStroke==EStroke::Oath ? FLinearColor(.09f,.52f,1.5f) : FLinearColor(.45f,.67f,.8f);
     for (int32 Row=0; Row<Rows; ++Row)
     {
         const FSample& S = History[FMath::Min(Row,History.Num()-1)];
-        const float Freshness = FMath::Clamp(1.f-static_cast<float>((Now-S.Time)/Lifetime),0.f,1.f);
+        const float Freshness = FMath::Clamp(1.f-static_cast<float>((Now-S.Time)/TrailLife),0.f,1.f);
         for (int32 Column=0; Column<Columns; ++Column)
         {
             const int32 Index = Row*Columns+Column;

@@ -1,4 +1,5 @@
 #include "Tests/SBScenarioAudit.h"
+#include "Camera/CameraActor.h"
 #if !UE_BUILD_SHIPPING
 #include "Boss/SBKnight.h"
 #include "Camera/PlayerCameraManager.h"
@@ -231,7 +232,7 @@ void ASBScenarioAudit::Tick(float Dt)
         int32 BossCount=0;for(TActorIterator<ASBKnight> I(GetWorld());I;++I) ++BossCount;
         if (!Require(BossCount==1 && G->Encounter==ESBEncounter::Approach && K->Health==400 && !K->bArmBroken && K->ArmHealth==90 && K->Phase==1 && !K->bEncounterActive && K->PatternsStarted==0 && H->Health==100 && H->Stamina==100 && !H->bLockedOn && !H->bOathReady && G->Dummy->Health==100,TEXT("fresh map failed reset checks"))) return;
         if (!Require(!K->bShieldBroken && !K->bKneeBroken && K->ShieldHealth==75 && K->KneeHealth==65 &&
-            K->BreakCount==0 && H->SelectedPart==ESBArmorPart::SwordArm,TEXT("armor or target selection persisted after reload"))) return;
+            K->BreakCount==0 && H->SelectedPart==ESBArmorPart::Body,TEXT("armor or target selection persisted after reload"))) return;
         if (Run.Reloads==0 && FParse::Param(FCommandLine::Get(),TEXT("SBAuditArmorAssets")))
         {
             const auto* Mesh=K->GetMesh();
@@ -366,11 +367,64 @@ void ASBScenarioAudit::Tick(float Dt)
         if (!Require(H->GetCharacterMovement()->MaxWalkSpeed==450.f,TEXT("released Shift left sprint latched"))) return;
         Key(EKeys::D,false);
         Checkpoint(TEXT("held and released Shift switched 650/450 speed while movement stayed held"));
-        H->Health=100;Next(10);return;
+        H->Health=100;
+        Place(G->Dummy->RackPoint(ESBArmorPart::SwordArm)+FVector(93,0,0),180);
+        Tap(EKeys::F);Next(101);return;
+    case 101:
+        if (H->SelectedPart!=ESBArmorPart::SwordArm) return;
+        Tap(EKeys::LeftMouseButton);Next(102);return;
+    case 102:
+        if (G->Dummy->RackPulse<=0) return;
+        if (!Require(G->Dummy->LastRackHit==ESBArmorPart::SwordArm && K->Health==400,
+            TEXT("rack hit did not resolve the focused arm independently"))) return;
+        Checkpoint(TEXT("F selected the practice arm and a live swing rang the armor in the vestibule"));
+        Next(10);return;
     case 10:
         // Wait over one pattern impact interval before crossing the gate on each new world.
         if (Clock<.85f || H->Action!=ESBHeroAction::Ready) return;
         if (!Require(H->Health==100 && !K->bEncounterActive,TEXT("stale encounter state while in approach"))) return;
+        Place(FVector(-1230,0,95),0);
+        if (Run.Reloads==0 && FParse::Param(FCommandLine::Get(),TEXT("SBAuditGateView")))
+        {
+            Place(FVector(-1680,0,95),0);
+            Next(89);return;
+        }
+        Next(88);return;
+    case 89:
+        if (Clock<.7f) return;
+        FScreenshotRequest::RequestScreenshot(FPaths::ProjectSavedDir()/TEXT("QA/lit-vestibule.png"),false,false);
+        Next(87);return;
+    case 87:
+        if (Clock<.15f) return;
+        Place(FVector(-1230,0,95),0);
+        Next(88);return;
+    case 88:
+        if (!Require(G->CanOpenDoor(),TEXT("door interaction unavailable outside threshold"))) return;
+        Tap(EKeys::E);Next(90);return;
+    case 90:
+        if (!G->DoorIsOpen()) return;
+        if (Run.Reloads==0 && FParse::Param(FCommandLine::Get(),TEXT("SBAuditGateView")))
+            FScreenshotRequest::RequestScreenshot(FPaths::ProjectSavedDir()/TEXT("QA/open-vestibule.png"),false,false);
+        {
+            FCollisionQueryParams Query(SCENE_QUERY_STAT(OpenDoorSight),false,H);
+            Query.AddIgnoredActor(K);
+            const FVector Eye=H->GetActorLocation()+FVector(0,0,55);
+            if (!Require(!GetWorld()->LineTraceTestByChannel(Eye,K->GetActorLocation(),ECC_Visibility,Query),
+                TEXT("open doorway obstructs the view from the vestibule to the knight"))) return;
+        }
+        if (!Require(!K->bEncounterActive && G->Encounter==ESBEncounter::Approach,TEXT("opening door started combat before crossing"))) return;
+        Key(EKeys::W,true);Next(91);return;
+    case 91:
+        if (G->Encounter!=ESBEncounter::Introduction) return;
+        if (!Require(GetWorld()->LineTraceTestByChannel(FVector(-1000,0,115),FVector(-1210,0,115),ECC_Pawn),
+            TEXT("retreat possible during gate closing animation"))) return;
+        if (!Require(FMath::Abs(H->GetActorLocation().X+1018.)<35.,TEXT("crossing the door displaced the player"))) return;
+        Key(EKeys::W,false);
+        if (!Require(!H->InputEnabled() && !K->bEncounterActive,TEXT("combat or player input active during reveal"))) return;
+        Next(92);return;
+    case 92:
+        if (Clock<2.f) return;
+        if (!Require(PC->GetViewTarget()!=H,TEXT("boss camera never took over"))) return;
         if (Run.Reloads==2 || Run.Reloads==3)
         {
             Place(K->GetActorLocation()+K->GetActorForwardVector()*435,0);
@@ -380,6 +434,17 @@ void ASBScenarioAudit::Tick(float Dt)
         Next(11);return;
     case 11:
         if (G->Encounter!=ESBEncounter::Fighting || K->Action!=ESBKnightAction::SwordSweep || K->PatternElapsed>.25f) return;
+        if (!Require(!G->DoorIsOpen() && GetWorld()->LineTraceTestByChannel(FVector(-1000,55,115),FVector(-1210,55,115),ECC_Visibility),
+            TEXT("boss gate failed to seal at fight start"))) return;
+        if (Run.Reloads>=6 && Run.Reloads<=8)
+        {
+            Tap(EKeys::Tab);Next(96);return;
+        }
+        if (Run.Reloads==4 || Run.Reloads==5)
+        {
+            if (Run.Reloads==5) Tap(EKeys::Tab);
+            Next(94);return;
+        }
         if (Run.Reloads<2)
         {
             const bool Arm=Run.Reloads==0;
@@ -388,6 +453,33 @@ void ASBScenarioAudit::Tick(float Dt)
             Checkpoint(Arm?TEXT("5 arm strikes: boss 300, arm 0, one break and P2"):TEXT("10 body strikes: boss 200, arm 90, P2"));
             Next(12);return;
         }
+        Next(15);return;
+    case 96:
+    {
+        if (!H->bLockedOn || Clock<.08f) return;
+        const ESBArmorPart Part=Run.Reloads==6 ? ESBArmorPart::SwordArm : Run.Reloads==7 ? ESBArmorPart::Shield : ESBArmorPart::Knee;
+        if (H->SelectedPart!=Part) {Tap(EKeys::F);Next(96);return;}
+        const FVector Side=K->GetActorRightVector();
+        const float Sign=FVector::DotProduct(K->PartPoint(Part)-K->GetActorLocation(),Side)>=0 ? 1.f : -1.f;
+        Place(K->GetActorLocation()+Side*Sign*100.,0);
+        Tap(EKeys::LeftMouseButton);Next(97);return;
+    }
+    case 97:
+        if (K->Health>=400) return;
+        if (!Require(K->Health==380 && K->GetPartHealth(H->SelectedPart)==K->GetPartMaxHealth(H->SelectedPart)-20,
+            TEXT("lateral strike missed selected armor or duplicated damage"))) return;
+        Checkpoint(TEXT("side-on player swing damaged selected armor exactly once"));
+        Next(15);return;
+    case 94:
+        if (Clock<.04f) return;
+        if (!Require(H->bLockedOn==(Run.Reloads==5) && H->SelectedPart==ESBArmorPart::Body,TEXT("incorrect torso targeting mode"))) return;
+        Place(K->GetActorLocation()+K->GetActorForwardVector()*95,0);
+        Tap(EKeys::LeftMouseButton);Next(95);return;
+    case 95:
+        if (K->Health>=400) return;
+        if (!Require(K->Health==380 && K->ArmHealth==90 && K->ShieldHealth==75 && K->KneeHealth==65,
+            TEXT("torso swing damaged armor"))) return;
+        Checkpoint(Run.Reloads==4 ? TEXT("free frontal swing damaged torso only") : TEXT("locked frontal swing damaged torso only"));
         Next(15);return;
     case 12:
         if (Clock<.80f) return;
@@ -409,6 +501,14 @@ void ASBScenarioAudit::Tick(float Dt)
         Next(15);return;
     }
     case 15:
+        if (Run.Reloads==4)
+        {
+            K->Health=1; H->bOathReady=true;
+            Place(K->GetActorLocation()+K->GetActorForwardVector()*92,0);
+            if (H->Action!=ESBHeroAction::Ready) return;
+            if (!H->bLockedOn) H->ToggleLock();
+            Tap(EKeys::E);Next(103);return;
+        }
         if ((Run.Reloads%2)==0) K->ApplySwordHit(1000,1000,false);
         else H->ReceivePattern(1000,false);
         Next(16);return;
@@ -428,6 +528,9 @@ void ASBScenarioAudit::Tick(float Dt)
         Tap(EKeys::Tab);Next(73);return;
     case 73:
         if (!H->bLockedOn) return;
+        Tap(EKeys::F);Next(93);return;
+    case 93:
+        if (H->SelectedPart!=ESBArmorPart::SwordArm || Clock<.04f) return;
         Tap(EKeys::F);Next(74);return;
     case 74:
         if (H->SelectedPart!=ESBArmorPart::Shield) return;
@@ -456,10 +559,35 @@ void ASBScenarioAudit::Tick(float Dt)
         if (FParse::Param(FCommandLine::Get(),TEXT("SBAuditArmorAssets")))
         {
             auto* Mesh=K->GetMesh();
-            if (!Require(Mesh->IsBoneHiddenByName(TEXT("ShieldPlate")) && Mesh->IsBoneHiddenByName(TEXT("KneePlateL")) &&
-                !Mesh->IsBoneHiddenByName(TEXT("HandL")) && !Mesh->IsBoneHiddenByName(TEXT("ShinL")),
-                TEXT("destroyed plates did not detach independently from the surviving hand/leg"))) return;
-            Checkpoint(TEXT("shield and kneecap bones were hidden after breaks while the hand and shin remained visible"));
+            if (!Require(Mesh->IsBoneHiddenByName(TEXT("ShieldPlate")) && Mesh->IsBoneHiddenByName(TEXT("ShinL")) &&
+                !Mesh->IsBoneHiddenByName(TEXT("HandL")) && !Mesh->IsBoneHiddenByName(TEXT("ShinR")),
+                TEXT("destroyed plates did not detach independently from the surviving hand/right leg"))) return;
+            Checkpoint(TEXT("shield and left lower leg detached while the hand and right shin remained visible"));
+        }
+        Place(K->GetActorLocation()+K->GetActorForwardVector()*790,0);
+        Next(104);return;
+    case 104:
+        if (K->HopPhase<.35f || K->HopPhase>.65f) return;
+        if (!Require(K->bKneeBroken && K->GetVelocity().Size2D()>0,TEXT("amputated knight failed to pursue on one leg"))) return;
+        Checkpoint(TEXT("amputated knight entered the airborne beat while chasing"));
+        if (FParse::Param(FCommandLine::Get(),TEXT("SBAuditGateView")))
+        {
+            const FVector Focus=K->GetActorLocation(), Eye=Focus+K->GetActorForwardVector()*420+K->GetActorRightVector()*175;
+            auto* Camera=GetWorld()->SpawnActor<ACameraActor>(Eye,(Focus-Eye).Rotation());
+            PC->SetViewTarget(Camera);
+            Next(105);return;
+        }
+        Place(K->GetActorLocation()+K->GetActorForwardVector()*305,0);Next(78);return;
+    case 105:
+        if (Clock<.05f) return;
+        FScreenshotRequest::RequestScreenshot(FPaths::ProjectSavedDir()/TEXT("QA/one-foot-pursuit.png"),false,false);
+        Next(106);return;
+    case 106:
+        if (Clock<.05f) return;
+        if (auto* Camera=Cast<ACameraActor>(PC->GetViewTarget()))
+        {
+            PC->SetViewTarget(H);
+            Camera->Destroy();
         }
         Place(K->GetActorLocation()+K->GetActorForwardVector()*305,0);Next(78);return;
     case 78:
@@ -486,9 +614,22 @@ void ASBScenarioAudit::Tick(float Dt)
         if (!Require(H->Health==72 && !K->IsPunishWindow(),TEXT("stationary hero did not take one charge, or landed charge incorrectly exposed armor"))) return;
         Checkpoint(TEXT("standing in the lane took one 28-damage shield charge and granted no armor bonus"));
         Next(15);return;
+    case 103:
+        if (K->Health>0) return;
+        if (!Require(K->bOathFinish,TEXT("lethal oath did not trigger its finisher"))) return;
+        Checkpoint(TEXT("a lethal E triggered the delayed oath collapse"));
+        Next(16);return;
     case 16:
     {
         bool Win=Run.Reloads%2==0;
+        if (Win && G->Encounter==ESBEncounter::Altar)
+        {
+            Place(FVector(915,0,100),0);
+            if (Run.Reloads==0 && !G->CanLightCandle() && FParse::Param(FCommandLine::Get(),TEXT("SBAuditGateView")) && G->OutcomeSeconds>=1.f && G->OutcomeSeconds-Dt<1.f)
+                FScreenshotRequest::RequestScreenshot(FPaths::ProjectSavedDir()/TEXT("QA/altar-candle.png"),false,false);
+            if (G->CanLightCandle()) Tap(EKeys::E);
+            return;
+        }
         if (G->Encounter!=(Win?ESBEncounter::Victory:ESBEncounter::Defeat)) return;
         if (Win) ++Run.Victories; else ++Run.Defeats;
         ++Run.Reloads;Run.ReloadStarted=FPlatformTime::Seconds();

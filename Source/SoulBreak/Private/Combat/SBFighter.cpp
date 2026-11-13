@@ -58,7 +58,7 @@ void ASBFighter::LoadFighter(const FString& Name, float DesiredHeight)
         if (UAnimSequence* Anim = LoadObject<UAnimSequence>(nullptr,*Asset,nullptr,LOAD_NoWarn)) Clips.Add(FName(NamePart),Anim);
     }
     for (const TCHAR* Sound : {TEXT("Swing"),TEXT("Impact"),TEXT("Parry"),TEXT("Dodge"),TEXT("Break"),TEXT("Stomp"),TEXT("Shield"),TEXT("BodyHit"),TEXT("Step"),TEXT("HeavyStep"),
-                              TEXT("Charge"),TEXT("Wave"),TEXT("ShieldBreak"),TEXT("KneeBreak")})
+                              TEXT("Charge"),TEXT("Wave"),TEXT("ShieldBreak"),TEXT("KneeBreak"),TEXT("PhaseChoir"),TEXT("StoneScrape")})
     {
         if (Cues.FindRef(FName(Sound))) continue;
         FString Asset = FString::Printf(TEXT("/Game/SoulBreak/Audio/S_%s.S_%s"),Sound,Sound);
@@ -100,6 +100,7 @@ void ASBFighter::Pose(FName Clip, bool bLoop, float Duration, bool bRestart)
             Name==TEXT("StrafeL") || Name==TEXT("StrafeR");
     };
     const bool MatchStride=bLoop && IsGait(CurrentClip) && IsGait(Clip);
+    if (!MatchStride) LastSupportFoot=INDEX_NONE;
     const float BlendTime=Clip==TEXT("Parry") ? .04f : Clip==TEXT("Evade") ? .05f : bLoop ? .14f : .08f;
     Motion->PlayClip(Sequence,bLoop,Duration>0 ? Sequence->GetPlayLength()/Duration : 1.f,BlendTime,MatchStride);
     CurrentClip=Clip;
@@ -138,14 +139,17 @@ void ASBFighter::Locomotion(float WalkSpeed)
     {
         if (auto* Motion=Cast<USBMotionInstance>(GetMesh()->GetAnimInstance()))
         {
-            const float Nominal=Gait==TEXT("Run") ? WalkSpeed*1.45f : WalkSpeed;
-            Motion->SetPlayRate(FMath::Clamp(Speed/Nominal,.58f,1.22f));
+            // Full cycle distance in source-mesh cm, measured between heel strikes.
+            const float CycleDistance=Gait==TEXT("Run") || (!bHeavy && Gait==TEXT("Walk")) ? 235.f :
+                Gait==TEXT("Backstep") ? 148.f : 165.f;
+            const float WorldStride=CycleDistance*GetMesh()->GetRelativeScale3D().X;
+            Motion->SetPlayRate(FMath::Clamp(Speed*Motion->GetLength()/WorldStride,.32f,1.85f));
+            const float Phase=Motion->GetCurrentTime()/FMath::Max(.01f,Motion->GetLength());
+            const int32 SupportFoot=Phase<.5f ? 0 : 1;
+            if (Speed>40 && LastSupportFoot!=SupportFoot)
+                PlayCue(bHeavy ? TEXT("HeavyStep") : TEXT("Step"), bHeavy ? .45f : .23f,SupportFoot==0 ? .97f : 1.02f);
+            LastSupportFoot=SupportFoot;
         }
-    }
-    if (Speed > 40 && GetWorld()->TimeSeconds >= NextStep)
-    {
-        PlayCue(bHeavy ? TEXT("HeavyStep") : TEXT("Step"), bHeavy ? .45f : .23f);
-        NextStep = GetWorld()->TimeSeconds + (Speed > WalkSpeed + 20 ? .29f : .42f);
     }
 }
 void ASBFighter::Tick(float Dt)

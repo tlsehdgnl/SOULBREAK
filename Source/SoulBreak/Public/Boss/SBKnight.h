@@ -44,10 +44,15 @@ public:
     UFUNCTION(BlueprintPure) bool IsPunishWindow() const;
     UFUNCTION(BlueprintPure) bool IsRecoveryWindow() const;
     UFUNCTION(BlueprintCallable) void OnParried();
-    bool TracePart(const FVector& From,const FVector& To,ESBArmorPart Part) const;
+    bool TracePart(const FVector& From,const FVector& To,ESBArmorPart Part,bool bAimed=false) const;
     FVector ArmPoint() const;
     ASBHero* GetHero() const { return Hero; }
+    bool bParryRecoil = false;
+    bool bOathFinish = false;
+    float HopPhase = 0.f;
     void Think(float Dt);
+    void RaiseGuard();
+    void RoarPose();
     virtual void Tick(float Dt) override;
 protected:
     virtual void BeginPlay() override;
@@ -60,6 +65,10 @@ private:
     UPROPERTY() TObjectPtr<ASBHero> Hero;
     UPROPERTY() TObjectPtr<UStaticMesh> FallenBlade;
     UPROPERTY() TObjectPtr<UMaterialInstanceDynamic> RingMat;
+    float MeshRestZ = 0.f;
+    UPROPERTY() TArray<TObjectPtr<class UStaticMeshComponent>> Fractures;
+    void CreateFractures();
+    void UpdateFractures(ESBArmorPart Part);
     int32 LastHitId = -1;
     int32 NextPattern = 0;
     float NextStompTime = 0;

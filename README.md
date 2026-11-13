@@ -6,9 +6,9 @@
 
 ## 플레이
 
-Apple Silicon Mac에서는 **Builds/Shipping/Mac/SoulBreak-Mac-Shipping.app**을 실행한다. 개발용 패키지는 **Builds/Development/Mac/SoulBreak.app**이다. 에디터에서는 **SoulBreak.uproject**를 UE **5.8.4**로 열고 ▶ Play를 누른다. 기본 맵은 **L_Cathedral**이다.
+Apple Silicon Mac에서는 **Builds/Shipping/Mac/SoulBreak-Mac-Shipping.app**을 실행한다. 개발용 패키지는 **Builds/Development/Mac/SoulBreak.app**이다. 에디터에서는 **SoulBreak.uproject**를 UE **5.8.4**로 열고 ▶ Play를 누른다. 기본 맵은 **L_CathedralGate**이다.
 
-입구의 가죽 방패 표적에서 검을 연습하고, 성당 안쪽의 전투선을 넘어 기사에게 접근한다. Tab으로 기사를 고정하고 F로 오른팔, 방패, 왼쪽 무릎, 몸통 가운데 하나를 고른다. 거리와 검의 궤적이 맞아야 선택한 부위에 피해가 들어간다. 검 가로베기·방패 밀치기·방패 돌진·어깨 밀치기를 패링하면 **서약 절단** 한 번이 충전된다. 발구르기와 종파는 패링할 수 없다.
+성당 전실의 가죽 방패 표적에서 검을 연습한다. 본당 문 앞에서 E를 눌러 양문을 열고 안으로 걸어 들어가면 카메라가 기사를 비춘다. 기사의 포효가 끝나고 시점이 돌아오면 전투가 시작된다. Tab으로 기사를 고정하고 F로 오른팔, 방패, 왼쪽 무릎, 몸통 가운데 하나를 고른다. 거리와 검의 궤적이 맞아야 선택한 부위에 피해가 들어간다. 검 가로베기·방패 밀치기·방패 돌진·어깨 밀치기를 패링하면 **서약 절단** 한 번이 충전된다. 발구르기와 종파는 패링할 수 없다.
 
 | 입력 | 동작 |
 |---|---|
@@ -63,7 +63,7 @@ python3 Tools/build.py shipping
 
 | 위치 | 책임 |
 |---|---|
-| `Source/SoulBreak/Private/Core` | 전투선, 대기·전투·승패, 일시정지, 레벨 재시작 |
+| `Source/SoulBreak/Private/Core` | 성당 정문, 등장 연출, 대기·전투·승패, 일시정지, 레벨 재시작 |
 | `Source/SoulBreak/Private/Player` | Enhanced Input, 이동, 카메라, 잠금, 체력과 스태미나 |
 | `Source/SoulBreak/Private/Combat` | 시간창 내 검 궤적 스윕, 타격당 한 번 적용, 훈련 표적, 파편과 낙검 |
 | `Source/SoulBreak/Private/Boss` · `AI` | 기사의 팔과 페이즈, 공격 취소, 거리·거리각 판정과 패턴 순환 |

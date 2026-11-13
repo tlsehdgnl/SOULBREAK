@@ -7,6 +7,8 @@
 #include "Components/InstancedStaticMeshComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Engine/StaticMesh.h"
+#include "Engine/SkeletalMesh.h"
+#include "Components/StaticMeshComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Navigation/PathFollowingComponent.h"
@@ -41,6 +43,8 @@ void ASBKnight::BeginPlay()
     Super::BeginPlay();
     LoadFighter(TEXT("Knight"),275.f);
     FallenBlade=LoadObject<UStaticMesh>(nullptr,TEXT("/Game/SoulBreak/Characters/SM_FallenBlade.SM_FallenBlade"),nullptr,LOAD_NoWarn);
+    CreateFractures();
+    MeshRestZ=GetMesh()->GetRelativeLocation().Z;
     Body->SetRelativeLocation(FVector(0,0,12));
     // Anchor the capsule halfway between gauntlet and pauldron. Keep its shape in world centimetres
     // regardless of the author's armature units and its bone's local axes.
@@ -54,6 +58,51 @@ void ASBKnight::BeginPlay()
     if (RingMat) { RingMat->SetVectorParameterValue(TEXT("Color"),FLinearColor(1.9,.24,.025)); Telegraph->SetMaterial(0,RingMat); }
     for (int32 I=0;I<72;++I) Telegraph->AddInstance(FTransform::Identity);
 }
+void ASBKnight::CreateFractures()
+{
+    // Points are in the source mesh reference frame, relative to each plate pivot.
+    static const FVector Seams[][5]={
+        {{-4,8,6},{-6,12,3},{-5,15,-1},{-9,14,-4},{-8,15,-7}},
+        {{-8,13,13},{-4,14,7},{-6,15,2},{1,16,-5},{-2,14,-12}},
+        {{-2,3,6},{0,4.5,3},{-2,5.2,1},{1.5,5.5,-2},{0,4.6,-6}}
+    };
+    const FName Joints[]={TEXT("UpperArmR"),TEXT("ShieldPlate"),TEXT("KneePlateL")};
+    auto* Shape=LoadObject<UStaticMesh>(nullptr,TEXT("/Engine/BasicShapes/Cylinder"));
+    auto* Material=LoadObject<UMaterialInterface>(nullptr,TEXT("/Game/SoulBreak/FX/M_BladeLight"));
+    auto* Rig=GetMesh();
+    for (int P=0;P<3;++P)
+    {
+        const int Index=Rig->GetBoneIndex(Joints[P]);
+        const auto& Skeleton=Rig->GetSkeletalMeshAsset()->GetRefSkeleton();
+        FQuat Basis=Skeleton.GetRefBonePose()[Index].GetRotation();
+        for (int Parent=Skeleton.GetParentIndex(Index);Parent!=INDEX_NONE;Parent=Skeleton.GetParentIndex(Parent))
+            Basis=Skeleton.GetRefBonePose()[Parent].GetRotation()*Basis;
+        auto* Ink=UMaterialInstanceDynamic::Create(Material,this);
+        for (int I=0;I<4;++I)
+        {
+            const FVector A=Basis.UnrotateVector(Seams[P][I]),B=Basis.UnrotateVector(Seams[P][I+1]);
+            auto* Line=NewObject<UStaticMeshComponent>(this);
+            Line->SetupAttachment(Rig,Joints[P]);
+            Line->SetStaticMesh(Shape); Line->SetMaterial(0,Ink);
+            Line->SetRelativeLocation((A+B)*.5);
+            Line->SetRelativeRotation(FRotationMatrix::MakeFromZ(B-A).ToQuat());
+            Line->SetRelativeScale3D(FVector(.013,.013,(B-A).Size()*.011));
+            Line->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+            Line->SetVisibility(false); Line->SetCastShadow(false); Line->RegisterComponent();
+            Fractures.Add(Line);
+        }
+    }
+}
+void ASBKnight::UpdateFractures(ESBArmorPart Part)
+{
+    if (Part==ESBArmorPart::Body) return;
+    const int First=(int32(Part)-1)*4;
+    const float Damage=1.f-GetPartHealth(Part)/GetPartMaxHealth(Part);
+    auto* Ink=Cast<UMaterialInstanceDynamic>(Fractures[First]->GetMaterial(0));
+    Ink->SetVectorParameterValue(TEXT("Tint"),FMath::Lerp(FLinearColor(.27,.12,.05),FLinearColor(.04,.52,1.5),FMath::SmoothStep(.45f,.78f,Damage)));
+    Ink->SetScalarParameterValue(TEXT("Energy"),1.f+Damage*3.f);
+    for (int I=0;I<4;++I) Fractures[First+I]->SetVisibility(!IsPartBroken(Part) && Damage>float(I)/4);
+}
 void ASBKnight::StartEncounter(ASBHero* Target)
 {
     if (!Target || Health<=0 || bEncounterActive) return;
@@ -61,10 +110,17 @@ void ASBKnight::StartEncounter(ASBHero* Target)
     if (!GetController()) SpawnDefaultController();
     StopMoving();
     Face(Target->GetActorLocation()-GetActorLocation(),180.f);
-    Enter(ESBKnightAction::Challenge,.90f);
-    // Finish on the raised guard, before the sweep's first attacking pose.
-    Pose(TEXT("SwordSweep"),false,StateDuration/.38f,true);
+    Enter(ESBKnightAction::Chase,0);
     if (auto* AI=Cast<ASBBossController>(Controller)) AI->BeginDuel(*this);
+}
+void ASBKnight::RaiseGuard()
+{
+    Pose(TEXT("SwordSweep"),false,1.05f/.38f,true);
+    PlayCue(TEXT("HeavyStep"),.95f,.88f);
+}
+void ASBKnight::RoarPose()
+{
+    Pose(TEXT("BellWave"),false,2.35f,true);
 }
 void ASBKnight::StopMoving()
 {
@@ -94,7 +150,7 @@ const FSBPattern* ASBKnight::CurrentPattern() const
 }
 void ASBKnight::Enter(ESBKnightAction State,float Duration)
 {
-    Action=State; PatternElapsed=0; TelegraphDuration=0; StateDuration=Duration; bImpactResolved=false;
+    bParryRecoil=false; Action=State; PatternElapsed=0; TelegraphDuration=0; StateDuration=Duration; bImpactResolved=false;
     ++AttackGeneration; Telegraph->SetVisibility(false);
     switch(State)
     {
@@ -176,7 +232,8 @@ void ASBKnight::SelectOrChase(float Dt)
     const bool Following=AI && AI->GetMoveStatus()==EPathFollowingStatus::Moving;
     if (!Following) AddMovementInput(To.GetSafeNormal2D(),1.f,true);
     Face(Following && !GetVelocity().IsNearlyZero() ? GetVelocity() : To,Dt*280);
-    Locomotion(235);
+    if (!bKneeBroken) Locomotion(235);
+    else Pose(TEXT("Idle"),true);
 }
 void ASBKnight::Think(float Dt)
 {
@@ -348,10 +405,28 @@ void ASBKnight::UpdateRing(float OuterRadius,float InnerRadius)
 void ASBKnight::Tick(float Dt)
 {
     Super::Tick(Dt);
+    if (bKneeBroken)
+    {
+        const bool bMoving=Action==ESBKnightAction::Chase && GetVelocity().Size2D()>18;
+        if (bMoving || HopPhase>0.f)
+        {
+            HopPhase+=Dt/.57f;
+            if (HopPhase>=1.f)
+            {
+                PlayCue(TEXT("HeavyStep"),.78f,.86f);
+                HopPhase=bMoving ? FMath::Fmod(HopPhase,1.f) : 0.f;
+            }
+            FVector Position=GetMesh()->GetRelativeLocation();
+            Position.Z=MeshRestZ+24.f*FMath::Sin(PI*HopPhase);
+            GetMesh()->SetRelativeLocation(Position);
+        }
+    }
     HitFeedbackRemaining=FMath::Max(0.f,HitFeedbackRemaining-Dt);
     if (Health<=0)
     {
+        const float Previous=PatternElapsed;
         PatternElapsed+=Dt;
+        if (bOathFinish && Previous<.38f && PatternElapsed>=.38f) Pose(TEXT("Death"),false,1.25f,true);
         return;
     }
     if (!bArmBroken && GetMesh()->DoesSocketExist(TEXT("UpperArmR")))
@@ -418,17 +493,22 @@ bool ASBKnight::IsPartBroken(ESBArmorPart Part) const
     default: return false;
     }
 }
-bool ASBKnight::TracePart(const FVector& From,const FVector& To,ESBArmorPart Part) const
+bool ASBKnight::TracePart(const FVector& From,const FVector& To,ESBArmorPart Part,bool bAimed) const
 {
     if (!bEncounterActive || Health<=0 || IsPartBroken(Part)) return false;
     FHitResult Hit;
-    return PartCollider(Part)->SweepComponent(Hit,From,To,FQuat::Identity,FCollisionShape::MakeSphere(12.f));
+    float Radius=12.f;
+    if (bAimed && Part!=ESBArmorPart::Body)
+        Radius=Part==ESBArmorPart::SwordArm ? 27.f : 18.f;
+    return PartCollider(Part)->SweepComponent(Hit,From,To,FQuat::Identity,FCollisionShape::MakeSphere(Radius));
 }
 void ASBKnight::OnParried()
 {
     if (!bEncounterActive || !SBCombat::CanParry(Action) || Health<=0) return;
-    StopMoving(); Enter(ESBKnightAction::Stagger,1.f);
-    Pose(TEXT("Stagger"),false,1,true); HitPulse=1;
+    constexpr float ParryStaggerSeconds=1.5f;
+    StopMoving(); Enter(ESBKnightAction::Stagger,ParryStaggerSeconds);
+    bParryRecoil=true;
+    Pose(TEXT("Stagger"),false,ParryStaggerSeconds,true); HitPulse=1;
     if (Hero && Hero->GetMesh()->DoesSocketExist(TEXT("BladeBase")))
     {
         const FVector Bind=FMath::Lerp(Hero->GetMesh()->GetSocketLocation(TEXT("BladeBase")),
@@ -455,8 +535,9 @@ void ASBKnight::BreakPart(ESBArmorPart Part)
         Debris=LoadObject<UStaticMesh>(nullptr,TEXT("/Game/SoulBreak/Characters/SM_FallenShield.SM_FallenShield"),nullptr,LOAD_NoWarn);
         break;
     case ESBArmorPart::Knee:
-        Bone=TEXT("KneePlateL");Cue=TEXT("KneeBreak");
-        Debris=LoadObject<UStaticMesh>(nullptr,TEXT("/Game/SoulBreak/Characters/SM_FallenKnee.SM_FallenKnee"),nullptr,LOAD_NoWarn);
+        Bone=TEXT("ShinL");Cue=TEXT("KneeBreak");
+        Source=GetMesh()->GetSocketLocation(Bone);
+        Debris=LoadObject<UStaticMesh>(nullptr,TEXT("/Game/SoulBreak/Characters/SM_FallenLeg.SM_FallenLeg"),nullptr,LOAD_NoWarn);
         GetCharacterMovement()->MaxWalkSpeed=150;
         break;
     default: return;
@@ -486,21 +567,30 @@ void ASBKnight::ApplyPartHit(int32 Id,float Damage,ESBArmorPart Part)
     const bool bHitArmor=Part!=ESBArmorPart::Body && !Broken;
     const ESBHitResult R=SBCombat::ResolvePart(Id,LastHitId,Damage,Part,Health,Durability,Broken,Phase,IsPunishWindow() ? 1.5f:1.f);
     if (R==ESBHitResult::Miss) return;
+    if (bHitArmor) UpdateFractures(Part);
     LastHitPart=bHitArmor ? Part : ESBArmorPart::Body;
     HitFeedbackRemaining=.65f;
     HitPulse=1.f;
     PlayCue(bHitArmor ? TEXT("Shield") : TEXT("BodyHit"),bHitArmor ? .75f : .9f,bHitArmor ? 1.18f : .86f);
     if (R==ESBHitResult::Death)
     {
-        StopMoving(); Enter(ESBKnightAction::Dead,1.25f); Pose(TEXT("Death"),false,1.25f,true);
+        StopMoving(); Enter(ESBKnightAction::Dead,1.25f);
+        bOathFinish=Hero && Hero->Action==ESBHeroAction::OathCut;
+        if (bOathFinish) Pose(TEXT("HitReact"),false,.38f,true);
+        else Pose(TEXT("Death"),false,1.25f,true);
         bEncounterActive=false; return;
     }
     if (R==ESBHitResult::Broken) BreakPart(Part);
-    if (OldPhase!=Phase) { ++PhaseChanges; bPreferStomp=true; }
+    if (OldPhase!=Phase)
+    {
+        ++PhaseChanges; bPreferStomp=true;
+        PlayCue(TEXT("PhaseChoir"),.85f);
+        if (!bArmBroken) PlayCue(TEXT("StoneScrape"),.68f);
+    }
     if (R==ESBHitResult::Broken || R==ESBHitResult::Phase)
     {
         StopMoving();
-        if (R==ESBHitResult::Broken && Part==ESBArmorPart::Shield)
+        if (OldPhase==Phase && R==ESBHitResult::Broken && Part==ESBArmorPart::Shield)
         {
             Enter(ESBKnightAction::ShieldRecoil,1.f);
             Pose(TEXT("Stagger"),false,1.f,true);

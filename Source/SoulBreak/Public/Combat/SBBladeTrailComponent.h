@@ -19,6 +19,9 @@ public:
 private:
     struct FSample { FVector Base, Tip; double Time; };
     enum class EStroke : uint8 { None, Cut, Return, Oath, Knight };
+    UPROPERTY() TObjectPtr<class UStaticMeshComponent> Groove;
+    float ChargeFill=0;
+    float TrailLife=.095f;
     EStroke CurrentStroke() const;
     void DrawHistory(double Now);
     UPROPERTY() TObjectPtr<ASBHero> Hero;
